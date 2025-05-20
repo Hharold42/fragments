@@ -1,0 +1,107 @@
+import { Block, Matrix, Position } from "../data/types";
+import { BLOCKS } from "../data/pieces";
+
+export function generateRandomBlocks(): Block[] {
+    const easy = BLOCKS.filter(b => b.difficulty === 'easy');
+    const medium = BLOCKS.filter(b => b.difficulty === 'medium');
+    const hard = BLOCKS.filter(b => b.difficulty === 'hard');
+
+    const random = (arr: Block[]) => arr[Math.floor(Math.random() * arr.length)];
+
+    return [random(easy), random(medium), random(hard)];
+}
+
+export function canPlaceBlock(
+    board: Matrix,
+    block: Block,
+    position: Position
+): boolean {
+    const { matrix } = block;
+    const { x, y } = position;
+
+    // Проверяем границы поля
+    if (x < 0 || y < 0 || x + matrix[0].length > board[0].length || y + matrix.length > board.length) {
+        return false;
+    }
+
+    // Проверяем коллизии с существующими блоками
+    for (let i = 0; i < matrix.length; i++) {
+        for (let j = 0; j < matrix[i].length; j++) {
+            if (matrix[i][j] === 1 && board[y + i][x + j] === 1) {
+                return false;
+            }
+        }
+    }
+
+    return true;
+}
+
+export function placeBlock(
+    board: Matrix,
+    block: Block,
+    position: Position
+): Matrix {
+    if (!canPlaceBlock(board, block, position)) {
+        return board;
+    }
+
+    const newBoard = board.map(row => [...row]);
+    const { matrix } = block;
+    const { x, y } = position;
+
+    for (let i = 0; i < matrix.length; i++) {
+        for (let j = 0; j < matrix[i].length; j++) {
+            if (matrix[i][j] === 1) {
+                newBoard[y + i][x + j] = 1;
+            }
+        }
+    }
+
+    return newBoard;
+}
+
+export function clearLines(board: Matrix): { newBoard: Matrix; clearedLines: number } {
+    const height = board.length;
+    const width = board[0].length;
+    
+    // Создаем матрицу для пометки клеток, которые нужно очистить
+    const cellsToClear = board.map(row => row.map(() => false));
+    let clearedCells = 0;
+
+    // Проверяем строки
+    for (let y = 0; y < height; y++) {
+        if (board[y].every(cell => cell === 1)) {
+            // Помечаем все клетки в строке для очистки
+            for (let x = 0; x < width; x++) {
+                cellsToClear[y][x] = true;
+                clearedCells++;
+            }
+        }
+    }
+
+    // Проверяем столбцы
+    for (let x = 0; x < width; x++) {
+        if (board.every(row => row[x] === 1)) {
+            // Помечаем все клетки в столбце для очистки
+            for (let y = 0; y < height; y++) {
+                cellsToClear[y][x] = true;
+                clearedCells++;
+            }
+        }
+    }
+
+    // Создаем новую доску, очищая помеченные клетки
+    const newBoard = board.map((row, y) =>
+        row.map((cell, x) => (cellsToClear[y][x] ? 0 : cell))
+    );
+
+    // Подсчитываем количество очищенных линий
+    const clearedLines = Math.floor(clearedCells / width);
+
+    return { newBoard, clearedLines };
+}
+
+export function isGameOver(board: Matrix): boolean {
+    // Проверяем, есть ли заполненные клетки в верхней строке
+    return board[0].some(cell => cell === 1);
+}
