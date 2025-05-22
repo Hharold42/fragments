@@ -31,8 +31,40 @@ body {
 @keyframes tilt-n-move-shaking {
 
   0% { transform: translateX(0) }
-  25% { transform: translateX(1px) }
-  50% { transform: translateX(-1px) }
-  75% { transform: translateX(1px) }
+  25% { transform: translateX(2px) }
+  50% { transform: translateX(-2px) }
+  75% { transform: translateX(2px) }
   100% { transform: translateX(0) }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes opacity-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.opacity-in-animation {
+  animation: opacity-in 0.3s;
+}
+
+.fade-in-animation {
+  animation: fadeIn 0.9s ease-out forwards;
+}
+
+.fade-in-animation-fast {
+  animation: fadeIn 0.2s ease-out forwards;
 }

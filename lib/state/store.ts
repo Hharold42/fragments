@@ -25,6 +25,7 @@ export const useGameStore = create<
     endDrag: () => void;
     hoverCell: { x: number; y: number } | null;
     setHoverCell: (cell: { x: number; y: number } | null) => void;
+    initializeGame: () => void;
   }
 >((set, get) => ({
   draggedPiece: null,
@@ -41,12 +42,28 @@ export const useGameStore = create<
   board: Array(8)
     .fill(0)
     .map(() => Array(8).fill(0)),
-  currentPieces: generateRandomBlocks(),
+  currentPieces: [],
   score: 0,
   gameOver: false,
   round: 1,
   piecesPlaced: 0,
   validPositions: [],
+
+  initializeGame: () => {
+    set({
+      currentPieces: generateRandomBlocks(),
+      board: Array(8)
+        .fill(0)
+        .map(() => Array(8).fill(0)),
+      score: 0,
+      gameOver: false,
+      round: 1,
+      piecesPlaced: 0,
+      validPositions: [],
+      draggedPiece: null,
+      dragPosition: null
+    });
+  },
 
   placePiece: (x: number, y: number) => {
     const { board, currentPieces, piecesPlaced, round, draggedPiece } = get();
@@ -63,7 +80,7 @@ export const useGameStore = create<
 
     // Проверяем окончание игры
     const gameOver = isGameOver(clearedBoard);
-
+    
     // Обновляем счет
     const newScore = get().score + clearedLines * 100;
 
@@ -99,7 +116,7 @@ export const useGameStore = create<
       board: Array(8)
         .fill(0)
         .map(() => Array(8).fill(0)),
-      currentPieces: generateRandomBlocks(),
+      currentPieces: [],
       score: 0,
       gameOver: false,
       round: 1,

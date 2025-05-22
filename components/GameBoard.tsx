@@ -43,10 +43,17 @@ const GameBoard: React.FC<GameBoardProps> = ({ width = 8, height = 8 }) => {
     setHoverCell,
     hoverCell,
     validPositions,
+    initializeGame,
   } = useGameStore();
   const CELL_SIZE = 32;
 
   const { boardRef, calculatePosition } = useGhostPosition(CELL_SIZE);
+
+  useEffect(() => {
+    if (currentPieces.length === 0) {
+      initializeGame();
+    }
+  }, []);
 
   const handlePieceStart = (piece: Block, x: number, y: number) => {
     startDrag(piece);
@@ -164,25 +171,16 @@ const GameBoard: React.FC<GameBoardProps> = ({ width = 8, height = 8 }) => {
             piece={piece}
             isDragged={draggedPiece?.id === piece.id}
             onStart={handlePieceStart}
+            style={draggedPiece?.id === piece.id && dragPosition ? {
+              left: dragPosition.x - CELL_SIZE,
+              top: dragPosition.y - CELL_SIZE * 2,
+              transform: "scale(200%)",
+            
+            } : {}}
+            isGhost={draggedPiece?.id === piece.id}
           />
         ))}
       </div>
-      
-      {draggedPiece && dragPosition && (
-        <DraggablePiece
-          piece={draggedPiece}
-          cellSize={4}
-          ghostScale={2}
-          isGhost={true}
-          style={{
-            left: dragPosition.x - CELL_SIZE,
-            top: dragPosition.y - CELL_SIZE * 2,
-            transform: "scale(200%)",
-             transition: 'scale 0.2s ease-out'
-            
-          }}
-        />
-      )}
     </div>
   );
 };

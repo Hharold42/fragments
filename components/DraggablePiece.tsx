@@ -30,8 +30,8 @@ export const DraggablePiece: React.FC<DraggablePieceProps> = ({
 
   const baseClasses = `grid gap-0.5 ${isGhost ? "pointer-events-none" : "cursor-pointer"}`;
   const containerClasses = isGhost
-    ? "fixed z-[1000] opacity-70 transition-transform duration-500"
-    : `p-2 rounded-lg transition-all ${
+    ? "fixed z-[1000] opacity-70 transition-transform duration-200"
+    : `p-2 rounded-lg transition-all  opacity-in-animation cursor-pointer ${
         isDragged ? "bg-gray-600 scale-110" : "bg-gray-700"
       }`;
 
@@ -48,7 +48,7 @@ export const DraggablePiece: React.FC<DraggablePieceProps> = ({
             {row.map((cell, x) => (
               <div
                 key={`${x}-${y}`}
-                className={`w-4 h-4 rounded-sm transition-all duration-300 ${
+                className={`w-4 h-4 rounded-sm  ${
                   cell === 1 ? "bg-blue-500" : "bg-transparent"
                 }`}
               />
