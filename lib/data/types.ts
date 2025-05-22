@@ -15,7 +15,8 @@ export interface Position {
 export interface GameState{
     board: Matrix;
     currentPieces: Block[];
-    selectedPiece: Block | null;
+    // selectedPiece: Block | null;
     score: number;
     gameOver: boolean;
+    draggedPiece: Block | null;
 }

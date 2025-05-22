@@ -24,3 +24,15 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+.shake-animation {
+  animation: tilt-n-move-shaking 0.35s infinite;
+}
+@keyframes tilt-n-move-shaking {
+
+  0% { transform: translateX(0) }
+  25% { transform: translateX(1px) }
+  50% { transform: translateX(-1px) }
+  75% { transform: translateX(1px) }
+  100% { transform: translateX(0) }
+}
