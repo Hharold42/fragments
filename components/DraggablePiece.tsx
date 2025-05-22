@@ -1,0 +1,62 @@
+import React from "react";
+import { Block } from "../lib/data/types";
+
+interface DraggablePieceProps {
+  piece: Block;
+  cellSize?: number;
+  ghostScale?: number;
+  isGhost?: boolean;
+  isDragged?: boolean;
+  onStart?: (piece: Block, x: number, y: number) => void;
+  style?: React.CSSProperties;
+}
+
+export const DraggablePiece: React.FC<DraggablePieceProps> = ({
+  piece,
+  isGhost = false,
+  isDragged = false,
+  onStart,
+  style,
+}) => {
+  const handleStart = (e: React.MouseEvent | React.TouchEvent) => {
+    e.preventDefault();
+    if (isGhost || !onStart) return;
+
+    const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
+    const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
+
+    onStart(piece, clientX, clientY);
+  };
+
+  const baseClasses = `grid gap-0.5 ${isGhost ? "pointer-events-none" : "cursor-pointer"}`;
+  const containerClasses = isGhost
+    ? "fixed z-[1000] opacity-70 transition-transform duration-500"
+    : `p-2 rounded-lg transition-all ${
+        isDragged ? "bg-gray-600 scale-110" : "bg-gray-700"
+      }`;
+
+  return (
+    <div
+      className={containerClasses}
+      style={style}
+      onMouseDown={handleStart}
+      onTouchStart={handleStart}
+    >
+      <div className={baseClasses}>
+        {piece.matrix.map((row, y) => (
+          <div key={y} className="flex gap-0.5">
+            {row.map((cell, x) => (
+              <div
+                key={`${x}-${y}`}
+                className={`w-4 h-4 rounded-sm transition-all duration-300 ${
+                  cell === 1 ? "bg-blue-500" : "bg-transparent"
+                }`}
+              />
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
