@@ -1,5 +1,6 @@
 import React from "react";
 import { Block } from "../lib/data/types";
+import { getEventCoordinates } from "@/utils/events";
 
 interface DraggablePieceProps {
   piece: Block;
@@ -14,7 +15,6 @@ interface DraggablePieceProps {
 export const DraggablePiece: React.FC<DraggablePieceProps> = ({
   piece,
   isGhost = false,
-  isDragged = false,
   onStart,
   style,
 }) => {
@@ -22,8 +22,7 @@ export const DraggablePiece: React.FC<DraggablePieceProps> = ({
     e.preventDefault();
     if (isGhost || !onStart) return;
 
-    const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
-    const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
+    const { clientX, clientY } = getEventCoordinates(e);
 
     onStart(piece, clientX, clientY);
   };
@@ -31,9 +30,7 @@ export const DraggablePiece: React.FC<DraggablePieceProps> = ({
   const baseClasses = `grid gap-0.5 ${isGhost ? "pointer-events-none" : "cursor-pointer"}`;
   const containerClasses = isGhost
     ? "fixed z-[1000] opacity-70 transition-transform duration-200"
-    : `p-2 rounded-lg transition-all  opacity-in-animation cursor-pointer ${
-        isDragged ? "bg-gray-600 scale-110" : "bg-gray-700"
-      }`;
+    : `p-2 rounded-lg transition-all  opacity-in-animation cursor-pointer `;
 
   return (
     <div

@@ -4,30 +4,33 @@ import { getCellsToClear } from "@/lib/core/engine";
 import { findNearestValidPosition } from "../lib/core/positions";
 import { DraggablePiece } from "./DraggablePiece";
 import { Block } from "../lib/data/types";
+import { getEventCoordinates } from "@/utils/events";
 
 interface GameBoardProps {
   width?: number;
   height?: number;
 }
 
-const useGhostPosition = (cellSize: number) => {
-  const { draggedPiece, validPositions } = useGameStore();
+const useGridPosition = (cellSize: number) => {
+  const { validPositions } = useGameStore();
   const boardRef = useRef<HTMLDivElement>(null);
 
-  const calculatePosition = (e: MouseEvent) => {
-    if (!boardRef.current || !draggedPiece) return null;
-
+  const calculateGridPosition = (e: MouseEvent | TouchEvent) => {
+    if (!boardRef.current) return null;
+    const { clientX, clientY } = getEventCoordinates(e);
     const rect = boardRef.current.getBoundingClientRect();
-    const offsetX = e.clientX - rect.left + cellSize * 0.5;
-    const offsetY = e.clientY - rect.top - cellSize * 1.5;
 
-    const gridX = Math.floor(offsetX / cellSize);
-    const gridY = Math.floor(offsetY / cellSize);
+    // Базовое смещение для призрака
+    const ghostX = clientX - cellSize * 1.5;
+    const ghostY = clientY - cellSize * 4.5;
 
-    return findNearestValidPosition(validPositions, { x: gridX, y: gridY });
+    const baseX = Math.floor((ghostX - rect.left) / cellSize);
+    const baseY = Math.floor((ghostY - rect.top) / cellSize);
+
+    return findNearestValidPosition(validPositions, { x: baseX, y: baseY });
   };
 
-  return { boardRef, calculatePosition };
+  return { boardRef, calculateGridPosition };
 };
 
 const GameBoard: React.FC<GameBoardProps> = ({ width = 8, height = 8 }) => {
@@ -47,7 +50,20 @@ const GameBoard: React.FC<GameBoardProps> = ({ width = 8, height = 8 }) => {
   } = useGameStore();
   const CELL_SIZE = 32;
 
-  const { boardRef, calculatePosition } = useGhostPosition(CELL_SIZE);
+  const { boardRef, calculateGridPosition } = useGridPosition(CELL_SIZE);
+
+  const [clearingCells, setClearingCells] = useState<boolean[][]>([]);
+  const [isAnimating, setIsAnimating] = useState(false);
+
+  useEffect(() => {
+    if (isAnimating) {
+      const timer = setTimeout(() => {
+        setClearingCells([]);
+        setIsAnimating(false);
+      }, 300); // Время должно совпадать с длительностью анимации
+      return () => clearTimeout(timer);
+    }
+  }, [isAnimating]);
 
   useEffect(() => {
     if (currentPieces.length === 0) {
@@ -60,33 +76,41 @@ const GameBoard: React.FC<GameBoardProps> = ({ width = 8, height = 8 }) => {
     updateDrag({ x, y });
   };
 
+  const handlePiecePlacement = (x: number, y: number) => {
+    if (draggedPiece && hoverCell) {
+      const cellsToClear = getCellsToClear(board, draggedPiece, hoverCell);
+      const hasCellsToClear = cellsToClear.some((row) =>
+        row.some((cell) => cell)
+      );
+
+      if (hasCellsToClear) {
+        setClearingCells(cellsToClear);
+        setIsAnimating(true);
+
+        placePiece(x, y);
+
+        setTimeout(() => {
+          setClearingCells([]);
+          setIsAnimating(false);
+        }, 500);
+      } else {
+        placePiece(x, y);
+      }
+    }
+  };
+
   useEffect(() => {
     const handleMove = (e: MouseEvent | TouchEvent) => {
       if (!draggedPiece || !boardRef.current) return;
-      const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
-      const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
-
+      const { clientX, clientY } = getEventCoordinates(e);
       updateDrag({ x: clientX, y: clientY });
-      const rect = boardRef.current.getBoundingClientRect();
 
-      // Позиция призрака (смещена вверх)
-      const ghostX = clientX - CELL_SIZE;
-      const ghostY = clientY - CELL_SIZE * 2; // Смещаем призрак вверх
-
-      // Calculate base position относительно призрака
-      const baseX = Math.floor((ghostX - rect.left) / CELL_SIZE);
-      const baseY = Math.floor((ghostY - rect.top) / CELL_SIZE);
-
-      const nearestPosition = findNearestValidPosition(validPositions, {
-        x: baseX,
-        y: baseY,
-      });
-
+      const nearestPosition = calculateGridPosition(e);
       setHoverCell(nearestPosition);
     };
     const handleEnd = (e: MouseEvent | TouchEvent) => {
       if (draggedPiece && hoverCell) {
-        placePiece(hoverCell.x, hoverCell.y);
+        handlePiecePlacement(hoverCell.x, hoverCell.y);
       }
       endDrag();
     };
@@ -116,6 +140,8 @@ const GameBoard: React.FC<GameBoardProps> = ({ width = 8, height = 8 }) => {
               {row.map((cell, x) => {
                 let highlight = false;
                 let willBeCleared = false;
+                let isClearing = false;
+
                 if (
                   draggedPiece &&
                   hoverCell &&
@@ -123,11 +149,9 @@ const GameBoard: React.FC<GameBoardProps> = ({ width = 8, height = 8 }) => {
                     (pos) => pos.x === hoverCell.x && pos.y === hoverCell.y
                   )
                 ) {
-                  // Calculate relative position from the top-left cell of the block
                   const relX = x - hoverCell.x;
                   const relY = y - hoverCell.y;
 
-                  // Check if this cell is part of the block
                   if (
                     relY >= 0 &&
                     relY < draggedPiece.matrix.length &&
@@ -144,14 +168,22 @@ const GameBoard: React.FC<GameBoardProps> = ({ width = 8, height = 8 }) => {
                   );
                   willBeCleared = cellsToClear[y][x];
                 }
+
+                // Проверяем, находится ли клетка в процессе удаления
+                if (clearingCells.length > 0 && clearingCells[y]?.[x]) {
+                  isClearing = true;
+                }
+
                 return (
                   <div
                     key={`${x}-${y}`}
                     className={`w-8 h-8 rounded-sm cursor-pointer transition-colors ${
                       highlight
                         ? "bg-blue-500/50"
+                        : isClearing
+                        ? "bg-red-500/50 clearing"
                         : willBeCleared
-                        ? "bg-red-500/50 scale-95  shake-animation"
+                        ? "bg-red-500/50"
                         : cell === 0
                         ? "bg-gray-700 hover:bg-gray-600"
                         : "bg-blue-500"
@@ -166,17 +198,19 @@ const GameBoard: React.FC<GameBoardProps> = ({ width = 8, height = 8 }) => {
 
       <div className="flex gap-4">
         {currentPieces.map((piece) => (
-          <DraggablePiece 
-            key={piece.id} 
+          <DraggablePiece
+            key={piece.id}
             piece={piece}
-            isDragged={draggedPiece?.id === piece.id}
             onStart={handlePieceStart}
-            style={draggedPiece?.id === piece.id && dragPosition ? {
-              left: dragPosition.x - CELL_SIZE,
-              top: dragPosition.y - CELL_SIZE * 2,
-              transform: "scale(200%)",
-            
-            } : {}}
+            style={
+              draggedPiece?.id === piece.id && dragPosition
+                ? {
+                    left: dragPosition.x - CELL_SIZE,
+                    top: dragPosition.y - CELL_SIZE * 4,
+                    transform: "scale(200%)",
+                  }
+                : {}
+            }
             isGhost={draggedPiece?.id === piece.id}
           />
         ))}

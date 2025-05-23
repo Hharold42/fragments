@@ -12,6 +12,8 @@ interface ExtendedGameState extends GameState {
   round: number;
   piecesPlaced: number;
   validPositions: Position[];
+  isAnimating: boolean;
+  setAnimating: (isAnimating: boolean) => void;
 }
 
 export const useGameStore = create<
@@ -48,6 +50,8 @@ export const useGameStore = create<
   round: 1,
   piecesPlaced: 0,
   validPositions: [],
+  isAnimating: false,
+  setAnimating: (isAnimating) => set({ isAnimating }),
 
   initializeGame: () => {
     set({

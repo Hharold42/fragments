@@ -1,10 +1,14 @@
 import { Block, Matrix, Position } from "../data/types";
 import { canPlaceBlock } from "./engine";
 
+const DISTANCE_THRESHOLD = 1.5;
+
 export function calculateValidPositions(
     board: Matrix,
     block: Block
 ): Position[] {
+
+    
     const validPositions: Position[] = [];
 
     // Перебираем все возможные позиции на поле
@@ -43,5 +47,5 @@ export function findNearestValidPosition(
       Math.pow(nearest.y - currentPosition.y, 2) 
     )
 
-    return distance <= 2 ? nearest : null
+    return distance <= DISTANCE_THRESHOLD ? nearest : null
 }
