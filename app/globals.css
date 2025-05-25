@@ -1,8 +1,40 @@
 @import "tailwindcss";
 
+
+@font-face {
+  font-family: "figtree";
+  src: url("/fonts/fig.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "figtree";
+  src: url("/fonts/figi.ttf") format("truetype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@layer base {
+  html {
+    font-family: "figtree";
+  }
+}
+
+@layer utilities {
+  .font-figtree {
+    font-family: "figtree";
+  }
+}
+
 :root {
   --background: #ffffff;
   --foreground: #171717;
+}
+
+@theme {
+  --font-fig: "figtree"
 }
 
 @theme inline {
@@ -101,3 +133,4 @@ body {
 .shaking {
   animation: shake 0.2s ease-in-out;
 }
+

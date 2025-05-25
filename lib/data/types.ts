@@ -12,11 +12,20 @@ export interface Position {
     y: number;
 }
 
-export interface GameState{
+export interface ScoreResult {
+    basePoints: number;
+    comboMultiplier: number;
+    totalPoints: number;
+    comboLevel: number;
+    clearedLines: number;
+    cellsPlaced: number;
+}
+
+export interface GameState {
     board: Matrix;
     currentPieces: Block[];
-    // selectedPiece: Block | null;
     score: number;
     gameOver: boolean;
     draggedPiece: Block | null;
+    lastScoreResult: ScoreResult | null;
 }

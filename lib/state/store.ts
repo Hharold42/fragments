@@ -1,12 +1,14 @@
 import { create } from "zustand";
-import { Block, GameState, Position } from "../data/types";
+import { Block, GameState, Position, ScoreResult } from "../data/types";
 import {
   generateRandomBlocks,
   placeBlock,
   clearLines,
   isGameOver,
+  getCellsToClear
 } from "../core/engine";
 import { calculateValidPositions } from "../core/positions";
+import { ScoreCalculator } from "../core/score";
 
 interface ExtendedGameState extends GameState {
   round: number;
@@ -15,6 +17,8 @@ interface ExtendedGameState extends GameState {
   isAnimating: boolean;
   setAnimating: (isAnimating: boolean) => void;
 }
+
+const scoreCalculator = new ScoreCalculator();
 
 export const useGameStore = create<
   ExtendedGameState & {
@@ -32,6 +36,7 @@ export const useGameStore = create<
 >((set, get) => ({
   draggedPiece: null,
   dragPosition: null,
+  lastScoreResult: null,
 
   startDrag: (block) => {
     const { board } = get();
@@ -65,8 +70,10 @@ export const useGameStore = create<
       piecesPlaced: 0,
       validPositions: [],
       draggedPiece: null,
-      dragPosition: null
+      dragPosition: null,
+      lastScoreResult: null
     });
+    scoreCalculator.resetCombo();
   },
 
   placePiece: (x: number, y: number) => {
@@ -79,14 +86,51 @@ export const useGameStore = create<
     // Если блок не был размещен, выходим
     if (newBoard === board) return;
 
+    // Подсчитываем количество размещенных клеток
+    const cellsPlaced = draggedPiece.matrix.reduce(
+      (sum, row) => sum + row.reduce((rowSum, cell) => rowSum + cell, 0),
+      0
+    );
+
+    // Получаем клетки, которые будут очищены
+    const cellsToClear = getCellsToClear(newBoard, draggedPiece, { x, y });
+    
+    // Подсчитываем количество клеток фигуры в очищаемых линиях
+    const cellsInLines = cellsToClear.reduce((sum, row, y) => {
+      return sum + row.reduce((rowSum, cell, x) => {
+        if (cell) {
+          const relX = x - x;
+          const relY = y - y;
+          if (
+            relY >= 0 &&
+            relY < draggedPiece.matrix.length &&
+            relX >= 0 &&
+            relX < draggedPiece.matrix[0].length &&
+            draggedPiece.matrix[relY][relX] === 1
+          ) {
+            return rowSum + 1;
+          }
+        }
+        return rowSum;
+      }, 0);
+    }, 0);
+
     // Очищаем заполненные линии
     const { newBoard: clearedBoard, clearedLines } = clearLines(newBoard);
 
     // Проверяем окончание игры
     const gameOver = isGameOver(clearedBoard);
     
+    // Рассчитываем очки
+    const scoreResult = scoreCalculator.calculateScore(
+      clearedBoard,
+      clearedLines,
+      cellsPlaced,
+      cellsInLines
+    );
+
     // Обновляем счет
-    const newScore = get().score + clearedLines * 100;
+    const newScore = get().score + scoreResult.totalPoints;
 
     // Обновляем количество размещенных блоков и раунд
     let newPiecesPlaced = piecesPlaced + 1;
@@ -111,7 +155,8 @@ export const useGameStore = create<
       currentPieces: newCurrentPieces,
       validPositions: [],
       draggedPiece: null,
-      dragPosition: null
+      dragPosition: null,
+      lastScoreResult: scoreResult
     });
   },
 
@@ -127,8 +172,10 @@ export const useGameStore = create<
       piecesPlaced: 0,
       validPositions: [],
       draggedPiece: null,
-      dragPosition: null
+      dragPosition: null,
+      lastScoreResult: null
     });
+    scoreCalculator.resetCombo();
   },
 
   hoverCell: null,

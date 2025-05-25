@@ -5,6 +5,7 @@ import { findNearestValidPosition } from "../lib/core/positions";
 import { DraggablePiece } from "./DraggablePiece";
 import { Block } from "../lib/data/types";
 import { getEventCoordinates } from "@/utils/events";
+import { ScoreDisplay } from "./ScoreDisplay";
 
 interface GameBoardProps {
   width?: number;
@@ -47,6 +48,8 @@ const GameBoard: React.FC<GameBoardProps> = ({ width = 8, height = 8 }) => {
     hoverCell,
     validPositions,
     initializeGame,
+    score,
+    lastScoreResult,
   } = useGameStore();
   const CELL_SIZE = 32;
 
@@ -102,30 +105,44 @@ const GameBoard: React.FC<GameBoardProps> = ({ width = 8, height = 8 }) => {
   useEffect(() => {
     const handleMove = (e: MouseEvent | TouchEvent) => {
       if (!draggedPiece || !boardRef.current) return;
+      
+      // Предотвращаем скролл на мобильных устройствах
+      if (e instanceof TouchEvent) {
+        e.preventDefault();
+      }
+      
       const { clientX, clientY } = getEventCoordinates(e);
       updateDrag({ x: clientX, y: clientY });
 
       const nearestPosition = calculateGridPosition(e);
       setHoverCell(nearestPosition);
     };
+
+    const handleStart = (e: TouchEvent) => {
+      // Предотвращаем скролл при начале перетаскивания
+      e.preventDefault();
+    };
+
     const handleEnd = (e: MouseEvent | TouchEvent) => {
       if (draggedPiece && hoverCell) {
         handlePiecePlacement(hoverCell.x, hoverCell.y);
       }
       endDrag();
     };
-    // click
+
+    // Добавляем обработчик для предотвращения скролла при начале перетаскивания
+    window.addEventListener("touchstart", handleStart, { passive: false });
     window.addEventListener("mousemove", handleMove);
-    window.addEventListener("mouseup", handleEnd);
-    // touch
     window.addEventListener("touchmove", handleMove, { passive: false });
+    window.addEventListener("mouseup", handleEnd);
     window.addEventListener("touchend", handleEnd);
     window.addEventListener("touchcancel", handleEnd);
 
     return () => {
+      window.removeEventListener("touchstart", handleStart);
       window.removeEventListener("mousemove", handleMove);
-      window.removeEventListener("mouseup", handleEnd);
       window.removeEventListener("touchmove", handleMove);
+      window.removeEventListener("mouseup", handleEnd);
       window.removeEventListener("touchend", handleEnd);
       window.removeEventListener("touchcancel", handleEnd);
     };
@@ -133,6 +150,24 @@ const GameBoard: React.FC<GameBoardProps> = ({ width = 8, height = 8 }) => {
 
   return (
     <div className="flex flex-col items-center gap-8">
+      <div className="flex flex-col items-center gap-4">
+        <div className="text-2xl font-bold">Счет: {score}</div>
+        {lastScoreResult && (
+          <div className="text-sm text-gray-400">
+            <div>Очищено линий: {lastScoreResult.clearedLines}</div>
+            <div>Размещено клеток: {lastScoreResult.cellsPlaced}</div>
+            <div>Очки за размещение: {lastScoreResult.placedBlocksPoints}</div>
+            <div>Очки за линии: {lastScoreResult.clearedLinesPoints}</div>
+            <div>Очки за блоки: {lastScoreResult.clearedBlocksPoints}</div>
+            <div>Комбо: {lastScoreResult.comboLevel} (×{lastScoreResult.comboBonus})</div>
+            {lastScoreResult.isBoardCleared && (
+              <div className="text-green-400">+300 бонус за очистку поля!</div>
+            )}
+            <div className="text-green-400">+{lastScoreResult.totalPoints}</div>
+          </div>
+        )}
+      </div>
+
       <div className="flex justify-center items-center p-4">
         <div ref={boardRef} className="grid gap-0.5 bg-gray-800 p-2 rounded-lg">
           {board.map((row, y) => (
