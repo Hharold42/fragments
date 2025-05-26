@@ -13,12 +13,16 @@ export interface Position {
 }
 
 export interface ScoreResult {
-    basePoints: number;
-    comboMultiplier: number;
+    placedBlocksPoints: number;
+    clearedLinesPoints: number;
+    clearedBlocksPoints: number;
+    comboBonus: number;
     totalPoints: number;
     comboLevel: number;
     clearedLines: number;
     cellsPlaced: number;
+    cellsInLines: number;
+    isBoardCleared: boolean;
 }
 
 export interface GameState {

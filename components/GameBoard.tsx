@@ -105,12 +105,12 @@ const GameBoard: React.FC<GameBoardProps> = ({ width = 8, height = 8 }) => {
   useEffect(() => {
     const handleMove = (e: MouseEvent | TouchEvent) => {
       if (!draggedPiece || !boardRef.current) return;
-      
+
       // Предотвращаем скролл на мобильных устройствах
       if (e instanceof TouchEvent) {
         e.preventDefault();
       }
-      
+
       const { clientX, clientY } = getEventCoordinates(e);
       updateDrag({ x: clientX, y: clientY });
 
@@ -159,7 +159,10 @@ const GameBoard: React.FC<GameBoardProps> = ({ width = 8, height = 8 }) => {
             <div>Очки за размещение: {lastScoreResult.placedBlocksPoints}</div>
             <div>Очки за линии: {lastScoreResult.clearedLinesPoints}</div>
             <div>Очки за блоки: {lastScoreResult.clearedBlocksPoints}</div>
-            <div>Комбо: {lastScoreResult.comboLevel} (×{lastScoreResult.comboBonus})</div>
+            <div>
+              Комбо: {lastScoreResult.comboLevel} (×{lastScoreResult.comboBonus}
+              )
+            </div>
             {lastScoreResult.isBoardCleared && (
               <div className="text-green-400">+300 бонус за очистку поля!</div>
             )}

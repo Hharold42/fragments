@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { Block, GameState, Position, ScoreResult } from "../data/types";
 import {
   generateRandomBlocks,
+  generateGuaranteedBlocks,
   placeBlock,
   clearLines,
   isGameOver,
@@ -60,7 +61,7 @@ export const useGameStore = create<
 
   initializeGame: () => {
     set({
-      currentPieces: generateRandomBlocks(),
+      currentPieces: generateGuaranteedBlocks(Array(8).fill(0).map(() => Array(8).fill(0))),
       board: Array(8)
         .fill(0)
         .map(() => Array(8).fill(0)),
@@ -143,7 +144,7 @@ export const useGameStore = create<
     if (newCurrentPieces.length === 0) {
       newRound = round + 1;
       newPiecesPlaced = 0;
-      newCurrentPieces = generateRandomBlocks();
+      newCurrentPieces = generateGuaranteedBlocks(clearedBoard);
     }
 
     set({
