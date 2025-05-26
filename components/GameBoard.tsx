@@ -3,13 +3,18 @@ import { useGameStore } from "../lib/state/store";
 import { getCellsToClear } from "@/lib/core/engine";
 import { findNearestValidPosition } from "../lib/core/positions";
 import { DraggablePiece } from "./DraggablePiece";
-import { Block } from "../lib/data/types";
+import { Block, Matrix, Position } from "../lib/data/types";
 import { getEventCoordinates } from "@/utils/events";
 import { ScoreDisplay } from "./ScoreDisplay";
+import { BlockGenerator } from "../lib/core/blockGenerator";
+import { DifficultyEvaluator } from "../lib/core/difficulty";
+import { GameOver } from "./GameOver";
+import { ScoreCalculator } from "../lib/core/scoreCalculator";
 
 interface GameBoardProps {
   width?: number;
   height?: number;
+  onScoreUpdate: (score: number) => void;
 }
 
 const useGridPosition = (cellSize: number) => {
@@ -34,7 +39,7 @@ const useGridPosition = (cellSize: number) => {
   return { boardRef, calculateGridPosition };
 };
 
-const GameBoard: React.FC<GameBoardProps> = ({ width = 8, height = 8 }) => {
+const GameBoard: React.FC<GameBoardProps> = ({ width = 8, height = 8, onScoreUpdate }) => {
   const {
     board,
     currentPieces,
@@ -57,6 +62,22 @@ const GameBoard: React.FC<GameBoardProps> = ({ width = 8, height = 8 }) => {
 
   const [clearingCells, setClearingCells] = useState<boolean[][]>([]);
   const [isAnimating, setIsAnimating] = useState(false);
+  const [nextBlocks, setNextBlocks] = useState<Block[]>([]);
+  const [selectedBlock, setSelectedBlock] = useState<Block | null>(null);
+  const [isGameOver, setIsGameOver] = useState(false);
+  const [combo, setCombo] = useState(0);
+  const [blockEvaluations, setBlockEvaluations] = useState<Array<{
+    difficulty: number;
+    scorePotential: number;
+  }>>([]);
+  const [pieceEvaluations, setPieceEvaluations] = useState<Array<{
+    difficulty: number;
+    scorePotential: number;
+  }>>([]);
+
+  const blockGenerator = new BlockGenerator();
+  const scoreCalculator = new ScoreCalculator();
+  const difficultyEvaluator = new DifficultyEvaluator();
 
   useEffect(() => {
     if (isAnimating) {
@@ -73,6 +94,31 @@ const GameBoard: React.FC<GameBoardProps> = ({ width = 8, height = 8 }) => {
       initializeGame();
     }
   }, []);
+
+  useEffect(() => {
+    generateNewBlocks();
+  }, []);
+
+  useEffect(() => {
+    if (currentPieces.length > 0) {
+      // Оцениваем каждую текущую фигуру
+      const evaluations = currentPieces.map(piece => 
+        difficultyEvaluator.evaluateBlock(piece, board)
+      );
+      setPieceEvaluations(evaluations);
+    }
+  }, [currentPieces, board]);
+
+  const generateNewBlocks = () => {
+    const newBlocks = blockGenerator.generateNextBlocks(board);
+    setNextBlocks(newBlocks);
+    
+    // Оцениваем каждую фигуру
+    const evaluations = newBlocks.map(block => 
+      difficultyEvaluator.evaluateBlock(block, board)
+    );
+    setBlockEvaluations(evaluations);
+  };
 
   const handlePieceStart = (piece: Block, x: number, y: number) => {
     startDrag(piece);
@@ -114,8 +160,31 @@ const GameBoard: React.FC<GameBoardProps> = ({ width = 8, height = 8 }) => {
       const { clientX, clientY } = getEventCoordinates(e);
       updateDrag({ x: clientX, y: clientY });
 
-      const nearestPosition = calculateGridPosition(e);
-      setHoverCell(nearestPosition);
+      const rect = boardRef.current.getBoundingClientRect();
+      
+      // Вычисляем размеры фигуры в пикселях
+      const pieceWidth = draggedPiece.matrix[0].length * CELL_SIZE;
+      const pieceHeight = draggedPiece.matrix.length * CELL_SIZE;
+      
+      // Вычисляем координаты фигуры относительно курсора
+      const pieceLeft = clientX - CELL_SIZE;
+      const pieceRight = pieceLeft + pieceWidth + CELL_SIZE * 2;
+      const pieceTop = clientY - CELL_SIZE * 4;
+      const pieceBottom = pieceTop + pieceHeight + CELL_SIZE * 2;
+
+      // Проверяем, находится ли фигура над полем с отступом
+      const isPieceOverBoard = 
+          pieceRight >= rect.left && 
+          pieceLeft <= rect.right && 
+          pieceBottom >= rect.top && 
+          pieceTop <= rect.bottom;
+
+      if (isPieceOverBoard) {
+        const nearestPosition = calculateGridPosition(e);
+        setHoverCell(nearestPosition);
+      } else {
+        setHoverCell(null);
+      }
     };
 
     const handleStart = (e: TouchEvent) => {
@@ -128,6 +197,7 @@ const GameBoard: React.FC<GameBoardProps> = ({ width = 8, height = 8 }) => {
         handlePiecePlacement(hoverCell.x, hoverCell.y);
       }
       endDrag();
+      setHoverCell(null);
     };
 
     // Добавляем обработчик для предотвращения скролла при начале перетаскивания
@@ -169,7 +239,7 @@ const GameBoard: React.FC<GameBoardProps> = ({ width = 8, height = 8 }) => {
       </div>
 
       <div className="flex justify-center items-center p-4">
-        <div ref={boardRef} className="grid gap-0.5 bg-gray-800 p-2 rounded-lg">
+        <div ref={boardRef} className="grid gap-0.5 bg-gray-800 p-2 rounded-lg relative">
           {board.map((row, y) => (
             <div key={y} className="flex gap-0.5">
               {row.map((cell, x) => {
@@ -232,24 +302,33 @@ const GameBoard: React.FC<GameBoardProps> = ({ width = 8, height = 8 }) => {
       </div>
 
       <div className="flex gap-4">
-        {currentPieces.map((piece) => (
-          <DraggablePiece
-            key={piece.id}
-            piece={piece}
-            onStart={handlePieceStart}
-            style={
-              draggedPiece?.id === piece.id && dragPosition
-                ? {
-                    left: dragPosition.x - CELL_SIZE,
-                    top: dragPosition.y - CELL_SIZE * 4,
-                    transform: "scale(200%)",
-                  }
-                : {}
-            }
-            isGhost={draggedPiece?.id === piece.id}
-          />
+        {currentPieces.map((piece, index) => (
+          <div key={piece.id} className="flex flex-col items-center">
+            <DraggablePiece
+              piece={piece}
+              onStart={handlePieceStart}
+              style={
+                draggedPiece?.id === piece.id && dragPosition
+                  ? {
+                      left: dragPosition.x - CELL_SIZE,
+                      top: dragPosition.y - CELL_SIZE * 4,
+                      transform: "scale(200%)",
+                    }
+                  : {}
+              }
+              isGhost={draggedPiece?.id === piece.id}
+            />
+            {pieceEvaluations[index] && (
+              <div className="mt-2 text-xs text-gray-400">
+                <div>Сложность: {Math.round(pieceEvaluations[index].difficulty)}</div>
+                <div>Потенциал: {Math.round(pieceEvaluations[index].scorePotential)}</div>
+              </div>
+            )}
+          </div>
         ))}
       </div>
+
+      {isGameOver && <GameOver />}
     </div>
   );
 };

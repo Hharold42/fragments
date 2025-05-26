@@ -1,4 +1,4 @@
-import { Matrix } from "../data/types";
+import { Block, Matrix } from "../data/types";
 
 // Combo bonus table (1-100)
 const COMBO_BONUS_TABLE: { [key: number]: number } = {
@@ -25,96 +25,129 @@ const COMBO_BONUS_TABLE: { [key: number]: number } = {
 };
 
 interface ScoreResult {
+  totalPoints: number;
+  clearedLines: number;
+  cellsPlaced: number;
   placedBlocksPoints: number;
   clearedLinesPoints: number;
   clearedBlocksPoints: number;
-  comboBonus: number;
-  totalPoints: number;
   comboLevel: number;
-  clearedLines: number;
-  cellsPlaced: number;
-  cellsInLines: number;
+  comboBonus: number;
   isBoardCleared: boolean;
 }
 
 export class ScoreCalculator {
-  private consecutiveNoClears: number = 0;
-  private currentCombo: number = 0;
+  private comboCounter: number = 0;
+  private lastSuccessfulMove: number = 0;
+  private moveCounter: number = 0;
+  private isComboOpened: boolean = false;
 
-  private logScoreCalculation(result: ScoreResult) {
-    console.log('=== Подсчет очков ===');
-    console.log(`Очищено линий: ${result.clearedLines}`);
-    console.log(`Размещено клеток: ${result.cellsPlaced}`);
-    console.log(`Клеток в линиях: ${result.cellsInLines}`);
-    console.log(`Очки за размещение: ${result.placedBlocksPoints}`);
-    console.log(`Очки за линии: ${result.clearedLinesPoints}`);
-    console.log(`Очки за очистку блоков: ${result.clearedBlocksPoints}`);
-    console.log(`Уровень комбо: ${result.comboLevel}`);
-    console.log(`Бонус комбо: +${result.comboBonus}`);
-    console.log(`Очистка поля: ${result.isBoardCleared ? 'Да (+300)' : 'Нет'}`);
-    console.log(`Итого очков: ${result.totalPoints}`);
-    console.log('===================');
+  private readonly LINE_POINTS = {
+    1: 10,
+    2: 20,
+    3: 60,
+    4: 120,
+    5: 200
+  };
+
+  private readonly BOARD_CLEAR_BONUS = 300;
+
+  resetCombo() {
+    this.comboCounter = 0;
+    this.lastSuccessfulMove = 0;
+    this.moveCounter = 0;
+    this.isComboOpened = false;
   }
 
-  private isBoardEmpty(board: Matrix): boolean {
+  private calculateComboBonus(clearedLines: number): number {
+    this.moveCounter++;
+    
+    if (clearedLines > 0) {
+      if (!this.isComboOpened) {
+        // Открываем комбо, но не увеличиваем счетчик
+        this.isComboOpened = true;
+        this.lastSuccessfulMove = this.moveCounter;
+        return 1;
+      } else {
+        // Последующие успешные ходы увеличивают комбо
+        this.comboCounter += clearedLines;
+        this.lastSuccessfulMove = this.moveCounter;
+        return this.comboCounter;
+      }
+    } else if (this.moveCounter - this.lastSuccessfulMove >= 3) {
+      // Сбрасываем комбо если прошло 3 хода без успешных
+      this.comboCounter = 0;
+      this.isComboOpened = false;
+      return 1;
+    }
+
+    return this.isComboOpened ? this.comboCounter : 1;
+  }
+
+  private isFullFigureCleared(block: Block, cellsInLines: number): boolean {
+    const totalCells = block.matrix.reduce(
+      (sum, row) => sum + row.reduce((rowSum, cell) => rowSum + cell, 0),
+      0
+    );
+    return cellsInLines === totalCells;
+  }
+
+  private getFigureMultiplier(block: Block, cellsInLines: number): number {
+    if (!this.isFullFigureCleared(block, cellsInLines)) {
+      return 1;
+    }
+
+    const [rows, cols] = [block.matrix.length, block.matrix[0].length];
+    return (rows === 1 || cols === 1) ? 2 : 5;
+  }
+
+  private isBoardCleared(board: Matrix): boolean {
     return board.every(row => row.every(cell => cell === 0));
   }
 
-  public calculateScore(
+  calculateScore(
     board: Matrix,
     clearedLines: number,
     cellsPlaced: number,
-    cellsInLines: number
+    cellsInLines: number,
+    block: Block
   ): ScoreResult {
-    // Базовые очки за размещение блоков (1 очко за блок)
+    // Базовые очки за размещенные клетки
     const placedBlocksPoints = cellsPlaced;
-    
-    // Очки за очищенные линии (10 очков за линию)
-    const clearedLinesPoints = clearedLines * 10;
-    
-    // Очки за очищенные блоки с учетом комбо
-    const clearedBlocksPoints = cellsInLines;
-    const comboBonus = COMBO_BONUS_TABLE[this.currentCombo] || 0;
-    const clearedBlocksWithBonus = clearedBlocksPoints * comboBonus;
-    
-    // Проверка на очистку всего поля
-    const isBoardCleared = this.isBoardEmpty(board);
-    const boardClearBonus = isBoardCleared ? 300 : 0;
-    
-    // Общий подсчет очков
-    const totalPoints = placedBlocksPoints + clearedLinesPoints + clearedBlocksWithBonus + boardClearBonus;
-    
-    // Обновление комбо
-    if (clearedLines > 0) {
-      this.currentCombo++;
-      this.consecutiveNoClears = 0;
-    } else {
-      this.consecutiveNoClears++;
-      if (this.consecutiveNoClears >= 3) {
-        this.currentCombo = 0;
-        this.consecutiveNoClears = 0;
-      }
-    }
 
-    const result: ScoreResult = {
+    // Очки за очищенные линии
+    const clearedLinesPoints = this.LINE_POINTS[clearedLines as keyof typeof this.LINE_POINTS] || 0;
+
+    // Рассчитываем комбо
+    const comboBonus = this.calculateComboBonus(clearedLines);
+
+    // Множитель за полную очистку фигуры
+    const figureMultiplier = this.getFigureMultiplier(block, cellsInLines);
+
+    // Очки за очищенные блоки
+    const clearedBlocksPoints = cellsInLines * figureMultiplier;
+
+    // Проверяем полную очистку поля
+    const isBoardCleared = this.isBoardCleared(board);
+    const boardClearBonus = isBoardCleared ? this.BOARD_CLEAR_BONUS : 0;
+
+    // Итоговый подсчет
+    const totalPoints = 
+      placedBlocksPoints + 
+      (clearedLinesPoints * comboBonus) + 
+      clearedBlocksPoints + 
+      boardClearBonus;
+
+    return {
+      totalPoints,
+      clearedLines,
+      cellsPlaced,
       placedBlocksPoints,
       clearedLinesPoints,
       clearedBlocksPoints,
+      comboLevel: this.comboCounter,
       comboBonus,
-      totalPoints,
-      comboLevel: this.currentCombo,
-      clearedLines,
-      cellsPlaced,
-      cellsInLines,
       isBoardCleared
     };
-
-    this.logScoreCalculation(result);
-    return result;
-  }
-
-  public resetCombo() {
-    this.currentCombo = 0;
-    this.consecutiveNoClears = 0;
   }
 } 

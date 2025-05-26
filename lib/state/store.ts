@@ -119,14 +119,15 @@ export const useGameStore = create<
     const { newBoard: clearedBoard, clearedLines } = clearLines(newBoard);
 
     // Проверяем окончание игры
-    const gameOver = isGameOver(clearedBoard);
+    const gameOver = isGameOver(clearedBoard, currentPieces);
     
-    // Рассчитываем очки
+    // Рассчитываем очки с учетом новой системы
     const scoreResult = scoreCalculator.calculateScore(
       clearedBoard,
       clearedLines,
       cellsPlaced,
-      cellsInLines
+      cellsInLines,
+      draggedPiece
     );
 
     // Обновляем счет
