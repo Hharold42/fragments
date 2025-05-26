@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { Block, GameState, Position, ScoreResult } from "../data/types";
+import { Block, GameState, Position, ScoreResult, Matrix } from "../data/types";
 import {
   placeBlock,
   clearLines,
@@ -9,6 +9,7 @@ import {
 import { calculateValidPositions } from "../core/positions";
 import { ScoreCalculator } from "../core/score";
 import { BlockGenerator } from "../core/blockGenerator";
+import { DifficultyEvaluator } from "../core/difficulty";
 
 interface ExtendedGameState extends GameState {
   round: number;
@@ -16,10 +17,15 @@ interface ExtendedGameState extends GameState {
   validPositions: Position[];
   isAnimating: boolean;
   setAnimating: (isAnimating: boolean) => void;
+  previewBlock: Block | null;
+  blockEvaluations: Array<{ difficulty: number; scorePotential: number }>;
+  setCurrentPieces: (pieces: Block[]) => void;
+  setPreviewBlock: (block: Block | null) => void;
 }
 
 const scoreCalculator = new ScoreCalculator();
 const blockGenerator = new BlockGenerator();
+const difficultyEvaluator = new DifficultyEvaluator();
 
 export const useGameStore = create<
   ExtendedGameState & {
@@ -38,6 +44,8 @@ export const useGameStore = create<
   draggedPiece: null,
   dragPosition: null,
   lastScoreResult: null,
+  previewBlock: null,
+  blockEvaluations: [],
 
   startDrag: (block) => {
     const { board } = get();
@@ -59,12 +67,18 @@ export const useGameStore = create<
   isAnimating: false,
   setAnimating: (isAnimating) => set({ isAnimating }),
 
+  setCurrentPieces: (pieces) => set({ currentPieces: pieces }),
+  setPreviewBlock: (block) => set({ previewBlock: block }),
+
   initializeGame: () => {
+    const newBoard = Array(8)
+      .fill(null)
+      .map(() => Array(8).fill(0));
+    const newBlocks = blockGenerator.generateNextBlocks(newBoard);
     set({
-      currentPieces: blockGenerator.generateNextBlocks(Array(8).fill(0).map(() => Array(8).fill(0))),
-      board: Array(8)
-        .fill(0)
-        .map(() => Array(8).fill(0)),
+      board: newBoard,
+      currentPieces: newBlocks,
+      previewBlock: blockGenerator.getPreviewBlock(),
       score: 0,
       gameOver: false,
       round: 1,
@@ -72,7 +86,10 @@ export const useGameStore = create<
       validPositions: [],
       draggedPiece: null,
       dragPosition: null,
-      lastScoreResult: null
+      lastScoreResult: null,
+      blockEvaluations: newBlocks.map(block => 
+        difficultyEvaluator.evaluateBlock(block, newBoard)
+      )
     });
     scoreCalculator.resetCombo();
   },
@@ -82,10 +99,33 @@ export const useGameStore = create<
 
     if (!draggedPiece) return;
 
-    const newBoard = placeBlock(board, draggedPiece, { x, y });
+    // Проверяем, можно ли разместить фигуру
+    const canPlace = draggedPiece.matrix.every((row, dy) =>
+      row.every((cell, dx) => {
+        if (cell === 0) return true;
+        const boardX = x + dx;
+        const boardY = y + dy;
+        return (
+          boardX >= 0 &&
+          boardX < board[0].length &&
+          boardY >= 0 &&
+          boardY < board.length &&
+          board[boardY][boardX] === 0
+        );
+      })
+    );
 
-    // Если блок не был размещен, выходим
-    if (newBoard === board) return;
+    if (!canPlace) return;
+
+    // Размещаем фигуру
+    const newBoard = board.map(row => [...row]);
+    draggedPiece.matrix.forEach((row, dy) => {
+      row.forEach((cell, dx) => {
+        if (cell === 1) {
+          newBoard[y + dy][x + dx] = 1;
+        }
+      });
+    });
 
     // Подсчитываем количество размещенных клеток
     const cellsPlaced = draggedPiece.matrix.reduce(
@@ -120,7 +160,7 @@ export const useGameStore = create<
     const { newBoard: clearedBoard, clearedLines } = clearLines(newBoard);
 
     // Проверяем окончание игры
-    const gameOver = isGameOver(clearedBoard, currentPieces);
+    const gameOver = isGameOver(clearedBoard);
     
     // Рассчитываем очки с учетом новой системы
     const scoreResult = scoreCalculator.calculateScore(
@@ -158,7 +198,11 @@ export const useGameStore = create<
       validPositions: [],
       draggedPiece: null,
       dragPosition: null,
-      lastScoreResult: scoreResult
+      lastScoreResult: scoreResult,
+      previewBlock: blockGenerator.getPreviewBlock(),
+      blockEvaluations: newCurrentPieces.map(block => 
+        difficultyEvaluator.evaluateBlock(block, clearedBoard)
+      )
     });
   },
 
@@ -175,7 +219,9 @@ export const useGameStore = create<
       validPositions: [],
       draggedPiece: null,
       dragPosition: null,
-      lastScoreResult: null
+      lastScoreResult: null,
+      previewBlock: null,
+      blockEvaluations: []
     });
     scoreCalculator.resetCombo();
   },

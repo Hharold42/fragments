@@ -13,7 +13,7 @@ export class BlockSetFinder {
     private readonly allBlocks: Block[];
     private readonly minScorePotential: number = 30;
     private readonly minComboPotential: number = 1;
-    private readonly maxCombinations: number = 100; // Ограничиваем количество проверяемых комбинаций
+    private readonly maxCombinations: number = 100;
 
     constructor(allBlocks: Block[]) {
         this.allBlocks = allBlocks;
@@ -24,14 +24,14 @@ export class BlockSetFinder {
         const blockCount = this.allBlocks.length;
         let combinationsChecked = 0;
 
-        // Сначала проверяем блоки с наибольшим потенциалом очков
+        // Сортируем блоки по приоритету размера и формы
         const sortedBlocks = [...this.allBlocks].sort((a, b) => {
-            const sizeA = this.calculateBlockSize(a);
-            const sizeB = this.calculateBlockSize(b);
-            return sizeB - sizeA;
+            const scoreA = this.getBlockPriorityScore(a);
+            const scoreB = this.getBlockPriorityScore(b);
+            return scoreB - scoreA;
         });
 
-        // Перебираем комбинации, начиная с самых больших блоков
+        // Перебираем комбинации, начиная с приоритетных блоков
         for (let i = 0; i < blockCount && combinationsChecked < this.maxCombinations; i++) {
             for (let j = 0; j < blockCount && combinationsChecked < this.maxCombinations; j++) {
                 if (j === i) continue;
@@ -63,6 +63,30 @@ export class BlockSetFinder {
             }
             return b.totalSize - a.totalSize;
         });
+    }
+
+    private getBlockPriorityScore(block: Block): number {
+        const rows = block.matrix.length;
+        const cols = block.matrix[0].length;
+        const size = this.calculateBlockSize(block);
+        
+        // Базовый приоритет по размеру
+        let score = size * 10;
+
+        // Дополнительные очки за предпочтительные размеры
+        if ((rows === 2 && cols === 3) || (rows === 3 && cols === 2)) {
+            score += 50; // 2x3 или 3x2
+        } else if (rows === 3 && cols === 3) {
+            score += 40; // 3x3
+        } else if (rows === 2 && cols === 2) {
+            score += 30; // 2x2
+        }
+
+        // Бонус за компактность (отношение заполненных ячеек к общему размеру)
+        const compactness = size / (rows * cols);
+        score += compactness * 20;
+
+        return score;
     }
 
     private evaluateBlockSet(blocks: Block[], board: Matrix): BlockSet | null {

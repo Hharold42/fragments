@@ -126,6 +126,32 @@ const ALL_BLOCKS: Matrix[] = [
         [0, 1]
     ],
 
+    // 2x3 фигуры
+    [
+        [1, 1, 1],
+        [1, 1, 1]
+    ],
+    [
+        [1, 1],
+        [1, 1],
+        [1, 1]
+    ],
+    [
+        [1, 1, 1],
+        [0, 1, 0]
+    ],
+    [
+        [0, 1, 0],
+        [1, 1, 1]
+    ],
+
+    // 3x3 фигуры
+    [
+        [1, 1, 1],
+        [1, 1, 1],
+        [1, 1, 1]
+    ],
+
     // Дополнительные фигуры
     [
         [1, 1, 1],
@@ -155,8 +181,8 @@ ALL_BLOCKS.forEach((matrix, index) => {
 // Группируем фигуры по сложности
 const BLOCKS_BY_DIFFICULTY = {
     easy: [0, 1, 2], // I, O
-    medium: [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14], // T, L, J
-    hard: [15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31] // S, Z, дополнительные
+    medium: [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23], // T, L, J, S, Z
+    hard: [24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43] // 2x3, 3x3, дополнительные
 };
 
 export class BlockGenerator {
@@ -166,6 +192,9 @@ export class BlockGenerator {
     private readonly maxDifficulty: number = 80;
     private readonly minScorePotential: number = 30;
     private lastGeneratedBlocks: Block[] = [];
+    private blockBag: Block[] = [];
+    private previewBlock: Block | null = null;
+    private readonly criticalThreshold: number = 0.3; // Порог для определения критической ситуации
 
     constructor() {
         this.evaluator = new DifficultyEvaluator();
@@ -177,6 +206,7 @@ export class BlockGenerator {
             difficulty: this.getDifficultyForIndex(index)
         }));
         this.blockSetFinder = new BlockSetFinder(blocks);
+        this.fillBlockBag();
     }
 
     private getDifficultyForIndex(index: number): 'easy' | 'medium' | 'hard' {
@@ -185,97 +215,172 @@ export class BlockGenerator {
         return 'hard';
     }
 
-    generateNextBlocks(board: Matrix): Block[] {
-        // Ищем подходящие наборы блоков
-        const suitableSets = this.blockSetFinder.findSuitableBlockSets(board);
+    private getBlockType(block: Block): string {
+        // Определяем тип блока по его форме
+        const rows = block.matrix.length;
+        const cols = block.matrix[0].length;
+        const size = this.calculateBlockSize(block);
 
-        if (suitableSets.length > 0) {
-            // Берем лучший набор
-            const bestSet = suitableSets[0];
-            console.log('Found suitable block set:', {
-                scorePotential: bestSet.scorePotential,
-                comboPotential: bestSet.comboPotential,
-                totalSize: bestSet.totalSize
-            });
-            this.lastGeneratedBlocks = bestSet.blocks;
-            return bestSet.blocks;
-        }
-
-        // Если подходящих наборов нет, генерируем блоки с учетом последнего сгенерированного набора
-        console.log('No suitable block sets found, generating alternative blocks');
-        return this.generateAlternativeBlocks(board);
+        if (size === 4 && rows === 2 && cols === 2) return 'square';
+        if (size === 4 && (rows === 4 || cols === 4)) return 'line';
+        if (size === 3 && (rows === 3 || cols === 3)) return 'L';
+        if (size === 3 && (rows === 2 || cols === 2)) return 'small';
+        return 'other';
     }
 
-    private generateAlternativeBlocks(board: Matrix): Block[] {
-        const blocks: Block[] = [];
-        const usedIndices = new Set<number>();
+    private calculateBlockSize(block: Block): number {
+        return block.matrix.reduce(
+            (sum, row) => sum + row.reduce((rowSum, cell) => rowSum + cell, 0),
+            0
+        );
+    }
 
-        // Сначала пробуем использовать блоки из последнего сгенерированного набора
-        if (this.lastGeneratedBlocks.length > 0) {
-            for (const block of this.lastGeneratedBlocks) {
-                const validPositions = findAllValidPositions(board, block);
-                if (validPositions.length > 0) {
-                    blocks.push(block);
-                    if (blocks.length === 3) {
-                        return blocks;
+    private fillBlockBag() {
+        // Создаем мешок со всеми блоками
+        this.blockBag = ALL_BLOCKS.map((matrix, index) => ({
+            id: `block-${index}`,
+            name: `Block ${index + 1}`,
+            matrix,
+            difficulty: this.getDifficultyForIndex(index)
+        }));
+
+        // Перемешиваем мешок
+        for (let i = this.blockBag.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [this.blockBag[i], this.blockBag[j]] = [this.blockBag[j], this.blockBag[i]];
+        }
+
+        // Устанавливаем preview блок
+        this.previewBlock = this.blockBag[0];
+    }
+
+    private getNextBlock(): Block {
+        if (this.blockBag.length === 0) {
+            this.fillBlockBag();
+        }
+        const block = this.blockBag.shift()!;
+        this.previewBlock = this.blockBag[0] || null;
+        return block;
+    }
+
+    private isCriticalSituation(board: Matrix): boolean {
+        // Проверяем заполненность верхних рядов
+        const topRowsFilled = board.slice(0, 2).some(row => 
+            row.some(cell => cell === 1)
+        );
+
+        // Проверяем количество доступных позиций для размещения
+        const availablePositions = board.reduce((count, row) => 
+            count + row.filter(cell => cell === 0).length, 0
+        );
+        const totalCells = board.length * board[0].length;
+        const fillRatio = 1 - (availablePositions / totalCells);
+
+        // Проверяем наличие больших пустых областей
+        const hasLargeEmptyAreas = this.checkForLargeEmptyAreas(board);
+
+        return topRowsFilled || fillRatio > 0.7 || hasLargeEmptyAreas;
+    }
+
+    private checkForLargeEmptyAreas(board: Matrix): boolean {
+        const visited = new Set<string>();
+        const rows = board.length;
+        const cols = board[0].length;
+
+        for (let y = 0; y < rows; y++) {
+            for (let x = 0; x < cols; x++) {
+                if (board[y][x] === 0 && !visited.has(`${x},${y}`)) {
+                    const areaSize = this.getEmptyAreaSize(board, x, y, visited);
+                    if (areaSize > 12) { // Если пустая область больше 12 клеток
+                        return true;
                     }
                 }
             }
         }
+        return false;
+    }
 
-        // Если не набрали достаточно блоков, добавляем новые
-        while (blocks.length < 3) {
-            // Выбираем случайную сложность
-            const difficulties: ('easy' | 'medium' | 'hard')[] = ['easy', 'medium', 'hard'];
-            const difficulty = difficulties[Math.floor(Math.random() * difficulties.length)];
-            
-            // Получаем доступные индексы для выбранной сложности
-            const availableIndices = BLOCKS_BY_DIFFICULTY[difficulty]
-                .filter(i => !usedIndices.has(i));
+    private getEmptyAreaSize(board: Matrix, startX: number, startY: number, visited: Set<string>): number {
+        const queue = [[startX, startY]];
+        let size = 0;
 
-            if (availableIndices.length === 0) continue;
+        while (queue.length > 0) {
+            const [x, y] = queue.shift()!;
+            const key = `${x},${y}`;
 
-            // Выбираем случайный индекс
-            const randomIndex = Math.floor(Math.random() * availableIndices.length);
-            const blockIndex = availableIndices[randomIndex];
+            if (visited.has(key)) continue;
+            visited.add(key);
 
-            // Создаем блок
-            const block = {
-                id: `block-${blockIndex}`,
-                name: `Block ${blockIndex + 1}`,
-                matrix: ALL_BLOCKS[blockIndex],
-                difficulty
-            };
+            if (board[y][x] === 0) {
+                size++;
+                // Проверяем соседние клетки
+                const neighbors = [
+                    [x + 1, y], [x - 1, y],
+                    [x, y + 1], [x, y - 1]
+                ];
 
-            // Проверяем, можно ли разместить блок
-            const validPositions = findAllValidPositions(board, block);
-            if (validPositions.length > 0) {
-                blocks.push(block);
-                usedIndices.add(blockIndex);
+                for (const [nx, ny] of neighbors) {
+                    if (
+                        nx >= 0 && nx < board[0].length &&
+                        ny >= 0 && ny < board.length &&
+                        board[ny][nx] === 0 &&
+                        !visited.has(`${nx},${ny}`)
+                    ) {
+                        queue.push([nx, ny]);
+                    }
+                }
+            }
+        }
+        return size;
+    }
+
+    generateNextBlocks(board: Matrix): Block[] {
+        // Проверяем, является ли ситуация критической
+        if (this.isCriticalSituation(board)) {
+            // Ищем подходящие наборы блоков
+            const suitableSets = this.blockSetFinder.findSuitableBlockSets(board);
+            if (suitableSets.length > 0) {
+                const bestSet = suitableSets[0];
+                console.log('Critical situation: Using calculated block set');
+                this.lastGeneratedBlocks = bestSet.blocks;
+                return bestSet.blocks;
             }
         }
 
-        // Если все еще не набрали достаточно блоков, добавляем любые доступные
+        // В обычной ситуации генерируем случайные блоки
+        console.log('Normal situation: Generating random blocks');
+        return this.generateRandomBlocks(board);
+    }
+
+    private generateRandomBlocks(board: Matrix): Block[] {
+        const blocks: Block[] = [];
+        const maxAttempts = 10;
+        let attempts = 0;
+
+        while (blocks.length < 3 && attempts < maxAttempts) {
+            const block = this.getNextBlock();
+            const validPositions = findAllValidPositions(board, block);
+            
+            if (validPositions.length > 0) {
+                blocks.push(block);
+            } else {
+                // Если блок нельзя разместить, возвращаем его в конец мешка
+                this.blockBag.push(block);
+            }
+            attempts++;
+        }
+
+        // Если не набрали достаточно блоков, добавляем любые доступные
         while (blocks.length < 3) {
-            const availableIndices = ALL_BLOCKS.map((_, i) => i)
-                .filter(i => !usedIndices.has(i));
-
-            if (availableIndices.length === 0) break;
-
-            const randomIndex = Math.floor(Math.random() * availableIndices.length);
-            const blockIndex = availableIndices[randomIndex];
-
-            blocks.push({
-                id: `block-${blockIndex}`,
-                name: `Block ${blockIndex + 1}`,
-                matrix: ALL_BLOCKS[blockIndex],
-                difficulty: this.getDifficultyForIndex(blockIndex)
-            });
-
-            usedIndices.add(blockIndex);
+            const block = this.getNextBlock();
+            blocks.push(block);
         }
 
         this.lastGeneratedBlocks = blocks;
         return blocks;
+    }
+
+    getPreviewBlock(): Block | null {
+        return this.previewBlock;
     }
 } 
