@@ -1,15 +1,4 @@
 import { Block, Matrix, Position } from "../data/types";
-import { BLOCKS } from "../data/pieces";
-
-export function generateRandomBlocks(): Block[] {
-  const easy = BLOCKS.filter((b) => b.difficulty === "easy");
-  const medium = BLOCKS.filter((b) => b.difficulty === "medium");
-  const hard = BLOCKS.filter((b) => b.difficulty === "hard");
-
-  const random = (arr: Block[]) => arr[Math.floor(Math.random() * arr.length)];
-
-  return [random(easy), random(medium), random(hard)];
-}
 
 export function canPlaceBlock(
   board: Matrix,

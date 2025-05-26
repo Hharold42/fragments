@@ -1,7 +1,6 @@
 import { create } from "zustand";
 import { Block, GameState, Position, ScoreResult } from "../data/types";
 import {
-  generateRandomBlocks,
   placeBlock,
   clearLines,
   isGameOver,
@@ -9,6 +8,7 @@ import {
 } from "../core/engine";
 import { calculateValidPositions } from "../core/positions";
 import { ScoreCalculator } from "../core/score";
+import { BlockGenerator } from "../core/blockGenerator";
 
 interface ExtendedGameState extends GameState {
   round: number;
@@ -19,6 +19,7 @@ interface ExtendedGameState extends GameState {
 }
 
 const scoreCalculator = new ScoreCalculator();
+const blockGenerator = new BlockGenerator();
 
 export const useGameStore = create<
   ExtendedGameState & {
@@ -60,7 +61,7 @@ export const useGameStore = create<
 
   initializeGame: () => {
     set({
-      currentPieces: generateRandomBlocks(),
+      currentPieces: blockGenerator.generateNextBlocks(Array(8).fill(0).map(() => Array(8).fill(0))),
       board: Array(8)
         .fill(0)
         .map(() => Array(8).fill(0)),
@@ -144,7 +145,7 @@ export const useGameStore = create<
     if (newCurrentPieces.length === 0) {
       newRound = round + 1;
       newPiecesPlaced = 0;
-      newCurrentPieces = generateRandomBlocks();
+      newCurrentPieces = blockGenerator.generateNextBlocks(clearedBoard);
     }
 
     set({

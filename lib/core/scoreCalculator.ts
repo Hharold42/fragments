@@ -17,17 +17,23 @@ export class ScoreCalculator {
     private readonly BASE_POINTS_PER_LINE = 100;
     private readonly COMBO_MULTIPLIER = 1.5;
     private readonly BOARD_CLEAR_BONUS = 300;
+    private comboLevel: number = 0;
+
+    getComboLevel(): number {
+        return this.comboLevel;
+    }
+
+    resetCombo(): void {
+        this.comboLevel = 0;
+    }
 
     calculateScore(
         board: Matrix,
-        placedBlock: Block,
-        position: Position,
-        previousCombo: number
+        clearedLines: number,
+        cellsPlaced: number,
+        cellsInLines: number,
+        placedBlock: Block
     ): ScoreResult {
-        const cellsPlaced = this.countPlacedCells(placedBlock);
-        const clearedLines = this.countClearedLines(board);
-        const isBoardCleared = this.isBoardCleared(board);
-
         // Базовые очки за размещение
         const placedBlocksPoints = cellsPlaced * this.BASE_POINTS_PER_CELL;
 
@@ -35,16 +41,17 @@ export class ScoreCalculator {
         const clearedLinesPoints = clearedLines * this.BASE_POINTS_PER_LINE;
 
         // Очки за очистку блоков
-        const clearedBlocksPoints = this.calculateClearedBlocksPoints(board);
+        const clearedBlocksPoints = cellsInLines * this.BASE_POINTS_PER_CELL;
 
         // Расчет комбо
-        const comboLevel = clearedLines > 0 ? previousCombo + 1 : 0;
-        const comboBonus = comboLevel > 1 ? Math.pow(this.COMBO_MULTIPLIER, comboLevel - 1) : 1;
+        this.comboLevel = clearedLines > 0 ? this.comboLevel + 1 : 0;
+        const comboBonus = this.comboLevel > 1 ? Math.pow(this.COMBO_MULTIPLIER, this.comboLevel - 1) : 1;
 
         // Общий подсчет очков
         let totalPoints = placedBlocksPoints + clearedLinesPoints + clearedBlocksPoints;
         totalPoints = Math.round(totalPoints * comboBonus);
         
+        const isBoardCleared = this.isBoardCleared(board);
         if (isBoardCleared) {
             totalPoints += this.BOARD_CLEAR_BONUS;
         }
@@ -55,92 +62,11 @@ export class ScoreCalculator {
             placedBlocksPoints,
             clearedLinesPoints,
             clearedBlocksPoints,
-            comboLevel,
+            comboLevel: this.comboLevel,
             comboBonus,
             isBoardCleared,
             totalPoints
         };
-    }
-
-    private countPlacedCells(block: Block): number {
-        return block.matrix.reduce(
-            (sum, row) => sum + row.reduce((rowSum, cell) => rowSum + cell, 0),
-            0
-        );
-    }
-
-    private countClearedLines(board: Matrix): number {
-        let clearedLines = 0;
-
-        // Проверяем строки
-        for (let y = 0; y < board.length; y++) {
-            if (board[y].every(cell => cell === 1)) {
-                clearedLines++;
-            }
-        }
-
-        // Проверяем столбцы
-        for (let x = 0; x < board[0].length; x++) {
-            if (board.every(row => row[x] === 1)) {
-                clearedLines++;
-            }
-        }
-
-        return clearedLines;
-    }
-
-    private calculateClearedBlocksPoints(board: Matrix): number {
-        let points = 0;
-        const visited = new Set<string>();
-
-        // Проверяем каждый блок
-        for (let y = 0; y < board.length; y++) {
-            for (let x = 0; x < board[0].length; x++) {
-                if (board[y][x] === 1 && !visited.has(`${x},${y}`)) {
-                    const blockSize = this.getBlockSize(board, x, y, visited);
-                    points += blockSize * this.BASE_POINTS_PER_CELL;
-                }
-            }
-        }
-
-        return points;
-    }
-
-    private getBlockSize(
-        board: Matrix,
-        startX: number,
-        startY: number,
-        visited: Set<string>
-    ): number {
-        const queue: [number, number][] = [[startX, startY]];
-        let size = 0;
-
-        while (queue.length > 0) {
-            const [x, y] = queue.shift()!;
-            const key = `${x},${y}`;
-
-            if (visited.has(key)) continue;
-            visited.add(key);
-            size++;
-
-            // Проверяем соседние клетки
-            const directions = [[0, 1], [1, 0], [0, -1], [-1, 0]];
-            for (const [dx, dy] of directions) {
-                const newX = x + dx;
-                const newY = y + dy;
-
-                if (
-                    newX >= 0 && newX < board[0].length &&
-                    newY >= 0 && newY < board.length &&
-                    board[newY][newX] === 1 &&
-                    !visited.has(`${newX},${newY}`)
-                ) {
-                    queue.push([newX, newY]);
-                }
-            }
-        }
-
-        return size;
     }
 
     private isBoardCleared(board: Matrix): boolean {

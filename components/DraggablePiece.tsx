@@ -18,6 +18,11 @@ export const DraggablePiece: React.FC<DraggablePieceProps> = ({
   onStart,
   style,
 }) => {
+  if (!piece || !piece.matrix) {
+    console.warn('Invalid piece in DraggablePiece:', piece);
+    return null;
+  }
+
   const handleStart = (e: React.MouseEvent | React.TouchEvent) => {
     e.preventDefault();
     if (isGhost || !onStart) return;

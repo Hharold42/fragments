@@ -55,6 +55,12 @@ export class DifficultyEvaluator {
     }
 
     private evaluateSize(block: Block): number {
+        // Проверяем, что матрица существует и имеет правильную форму
+        if (!block.matrix || !block.matrix.length || !block.matrix[0] || !block.matrix[0].length) {
+            console.warn('Invalid block matrix in evaluateSize:', block);
+            return 0;
+        }
+
         const totalCells = block.matrix.reduce(
             (sum, row) => sum + row.reduce((rowSum, cell) => rowSum + cell, 0),
             0
@@ -64,6 +70,12 @@ export class DifficultyEvaluator {
     }
 
     private evaluateShape(block: Block): number {
+        // Проверяем, что матрица существует и имеет правильную форму
+        if (!block.matrix || !block.matrix.length || !block.matrix[0] || !block.matrix[0].length) {
+            console.warn('Invalid block matrix in evaluateShape:', block);
+            return 0;
+        }
+
         const [rows, cols] = [block.matrix.length, block.matrix[0].length];
         
         // Линейные фигуры (1xN или Nx1)
@@ -82,6 +94,12 @@ export class DifficultyEvaluator {
     }
 
     private evaluateClearPotential(block: Block, board: Matrix): number {
+        // Проверяем, что матрица существует и имеет правильную форму
+        if (!block.matrix || !block.matrix.length || !block.matrix[0] || !block.matrix[0].length) {
+            console.warn('Invalid block matrix in evaluateClearPotential:', block);
+            return 0;
+        }
+
         let potential = 0;
         const [rows, cols] = [board.length, board[0].length];
 
@@ -128,6 +146,12 @@ export class DifficultyEvaluator {
         board: Matrix,
         placements: Position[]
     ): number {
+        // Проверяем, что матрица существует и имеет правильную форму
+        if (!block.matrix || !block.matrix.length || !block.matrix[0] || !block.matrix[0].length) {
+            console.warn('Invalid block matrix in evaluateComboPotential:', block);
+            return 0;
+        }
+
         let maxComboPotential = 0;
 
         for (const pos of placements) {

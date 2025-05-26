@@ -110,14 +110,78 @@ const GameBoard: React.FC<GameBoardProps> = ({ width = 8, height = 8, onScoreUpd
   }, [currentPieces, board]);
 
   const generateNewBlocks = () => {
-    const newBlocks = blockGenerator.generateNextBlocks(board);
-    setNextBlocks(newBlocks);
-    
-    // Оцениваем каждую фигуру
-    const evaluations = newBlocks.map(block => 
-      difficultyEvaluator.evaluateBlock(block, board)
-    );
-    setBlockEvaluations(evaluations);
+    try {
+      const newBlocks = blockGenerator.generateNextBlocks(board);
+      
+      // Проверяем, что все блоки имеют валидные матрицы
+      const validBlocks = newBlocks.filter(block => 
+        block && 
+        block.matrix && 
+        Array.isArray(block.matrix) && 
+        block.matrix.length > 0 && 
+        block.matrix[0] && 
+        Array.isArray(block.matrix[0])
+      );
+
+      if (validBlocks.length < 3) {
+        console.warn('Not enough valid blocks generated:', newBlocks);
+        // Создаем резервные блоки
+        const fallbackBlocks: Block[] = [
+          {
+            id: 'fallback-1',
+            name: 'Fallback Block 1',
+            matrix: [[1, 1], [1, 1]],
+            difficulty: 'medium'
+          },
+          {
+            id: 'fallback-2',
+            name: 'Fallback Block 2',
+            matrix: [[1, 1, 1]],
+            difficulty: 'medium'
+          },
+          {
+            id: 'fallback-3',
+            name: 'Fallback Block 3',
+            matrix: [[1], [1], [1]],
+            difficulty: 'medium'
+          }
+        ];
+        setNextBlocks(fallbackBlocks);
+      } else {
+        setNextBlocks(validBlocks);
+      }
+      
+      // Оцениваем каждую фигуру
+      const evaluations = validBlocks.map(block => 
+        difficultyEvaluator.evaluateBlock(block, board)
+      );
+      setBlockEvaluations(evaluations);
+    } catch (error) {
+      console.error('Error generating blocks:', error);
+      // Используем резервные блоки в случае ошибки
+      const fallbackBlocks: Block[] = [
+        {
+          id: 'fallback-1',
+          name: 'Fallback Block 1',
+          matrix: [[1, 1], [1, 1]],
+          difficulty: 'medium'
+        },
+        {
+          id: 'fallback-2',
+          name: 'Fallback Block 2',
+          matrix: [[1, 1, 1]],
+          difficulty: 'medium'
+        },
+        {
+          id: 'fallback-3',
+          name: 'Fallback Block 3',
+          matrix: [[1], [1], [1]],
+          difficulty: 'medium'
+        }
+      ];
+      setNextBlocks(fallbackBlocks);
+      setBlockEvaluations(fallbackBlocks.map(() => ({ difficulty: 0, scorePotential: 0 })));
+    }
   };
 
   const handlePieceStart = (piece: Block, x: number, y: number) => {

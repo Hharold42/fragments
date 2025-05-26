@@ -46,6 +46,12 @@ export function findNearestValidPosition(
 }
 
 export function findAllValidPositions(board: Matrix, block: Block): Position[] {
+    // Проверяем, что матрица блока существует и имеет правильную форму
+    if (!block.matrix || !block.matrix.length || !block.matrix[0] || !block.matrix[0].length) {
+        console.warn('Invalid block matrix:', block);
+        return [];
+    }
+
     const validPositions: Position[] = [];
     const [rows, cols] = [board.length, board[0].length];
     const [blockRows, blockCols] = [block.matrix.length, block.matrix[0].length];
@@ -62,6 +68,11 @@ export function findAllValidPositions(board: Matrix, block: Block): Position[] {
 }
 
 function isValidPlacement(board: Matrix, block: Block, position: Position): boolean {
+    // Проверяем, что матрица блока существует и имеет правильную форму
+    if (!block.matrix || !block.matrix.length || !block.matrix[0] || !block.matrix[0].length) {
+        return false;
+    }
+
     const { x, y } = position;
     const [blockRows, blockCols] = [block.matrix.length, block.matrix[0].length];
 
