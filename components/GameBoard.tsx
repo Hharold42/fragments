@@ -160,8 +160,7 @@ const GameBoard: React.FC<GameBoardProps> = ({ width = 8, height = 8 }) => {
             <div>Очки за линии: {lastScoreResult.clearedLinesPoints}</div>
             <div>Очки за блоки: {lastScoreResult.clearedBlocksPoints}</div>
             <div>
-              Комбо: {lastScoreResult.comboLevel} (×{lastScoreResult.comboBonus}
-              )
+              Комбо: {lastScoreResult.comboLevel} (×{lastScoreResult.comboBonus})
             </div>
             {lastScoreResult.isBoardCleared && (
               <div className="text-green-400">+300 бонус за очистку поля!</div>

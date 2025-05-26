@@ -127,7 +127,8 @@ export const useGameStore = create<
       clearedBoard,
       clearedLines,
       cellsPlaced,
-      cellsInLines
+      cellsInLines,
+      draggedPiece.matrix
     );
 
     // Обновляем счет
