@@ -217,17 +217,116 @@ export class BlockGenerator {
         return 'hard';
     }
 
-    private getBlockType(block: Block): string {
-        // Определяем тип блока по его форме
+    private getBaseFigureType(block: Block): string {
         const rows = block.matrix.length;
         const cols = block.matrix[0].length;
         const size = this.calculateBlockSize(block);
 
-        if (size === 4 && rows === 2 && cols === 2) return 'square';
-        if (size === 4 && (rows === 4 || cols === 4)) return 'line';
-        if (size === 3 && (rows === 3 || cols === 3)) return 'L';
-        if (size === 3 && (rows === 2 || cols === 2)) return 'small';
+        // Определяем базовый тип фигуры
+        if (size === 4) {
+            if (rows === 2 && cols === 2) return 'square';
+            if (rows === 1 || cols === 1) return 'line';
+        }
+        if (size === 3) {
+            // Проверяем L-образные фигуры
+            if (this.isLShape(block)) return 'L';
+            // Проверяем T-образные фигуры
+            if (this.isTShape(block)) return 'T';
+            // Проверяем S/Z-образные фигуры
+            if (this.isSShape(block)) return 'S';
+        }
         return 'other';
+    }
+
+    private isLShape(block: Block): boolean {
+        const matrix = block.matrix;
+        const rows = matrix.length;
+        const cols = matrix[0].length;
+        
+        // Проверяем все возможные L-образные формы
+        const patterns = [
+            [[1,0], [1,0], [1,1]], // L
+            [[0,1], [0,1], [1,1]], // L отраженная
+            [[1,1], [1,0], [1,0]], // L перевернутая
+            [[1,1], [0,1], [0,1]]  // L перевернутая отраженная
+        ];
+
+        return patterns.some(pattern => 
+            this.areMatricesSimilar(matrix, pattern)
+        );
+    }
+
+    private isTShape(block: Block): boolean {
+        const matrix = block.matrix;
+        const patterns = [
+            [[1,1,1], [0,1,0]], // T
+            [[0,1,0], [1,1,1]], // T перевернутая
+            [[1,0], [1,1], [1,0]], // T повернутая влево
+            [[0,1], [1,1], [0,1]]  // T повернутая вправо
+        ];
+
+        return patterns.some(pattern => 
+            this.areMatricesSimilar(matrix, pattern)
+        );
+    }
+
+    private isSShape(block: Block): boolean {
+        const matrix = block.matrix;
+        const patterns = [
+            [[0,1,1], [1,1,0]], // S
+            [[1,1,0], [0,1,1]], // Z
+            [[1,0], [1,1], [0,1]], // S повернутая
+            [[0,1], [1,1], [1,0]]  // Z повернутая
+        ];
+
+        return patterns.some(pattern => 
+            this.areMatricesSimilar(matrix, pattern)
+        );
+    }
+
+    private areMatricesSimilar(matrix1: Matrix, matrix2: Matrix): boolean {
+        if (matrix1.length !== matrix2.length || matrix1[0].length !== matrix2[0].length) {
+            return false;
+        }
+
+        // Проверяем прямое совпадение
+        let isDirectMatch = true;
+        for (let i = 0; i < matrix1.length; i++) {
+            for (let j = 0; j < matrix1[0].length; j++) {
+                if (matrix1[i][j] !== matrix2[i][j]) {
+                    isDirectMatch = false;
+                    break;
+                }
+            }
+            if (!isDirectMatch) break;
+        }
+        if (isDirectMatch) return true;
+
+        // Проверяем отражение по горизонтали
+        let isHorizontalReflection = true;
+        for (let i = 0; i < matrix1.length; i++) {
+            for (let j = 0; j < matrix1[0].length; j++) {
+                if (matrix1[i][j] !== matrix2[i][matrix2[0].length - 1 - j]) {
+                    isHorizontalReflection = false;
+                    break;
+                }
+            }
+            if (!isHorizontalReflection) break;
+        }
+        if (isHorizontalReflection) return true;
+
+        // Проверяем отражение по вертикали
+        let isVerticalReflection = true;
+        for (let i = 0; i < matrix1.length; i++) {
+            for (let j = 0; j < matrix1[0].length; j++) {
+                if (matrix1[i][j] !== matrix2[matrix2.length - 1 - i][j]) {
+                    isVerticalReflection = false;
+                    break;
+                }
+            }
+            if (!isVerticalReflection) break;
+        }
+        return isVerticalReflection;
     }
 
     private calculateBlockSize(block: Block): number {
@@ -281,7 +380,20 @@ export class BlockGenerator {
 
         // Находим фигуру с наименьшим значением FIGURE_TO_OFTEN
         const minFrequency = Math.min(...this.blockBag.map(b => b.FIGURE_TO_OFTEN || 0));
-        const candidates = this.blockBag.filter(b => (b.FIGURE_TO_OFTEN || 0) === minFrequency);
+        let candidates = this.blockBag.filter(b => (b.FIGURE_TO_OFTEN || 0) === minFrequency);
+        
+        // Если есть последние выданные фигуры, исключаем фигуры того же типа
+        if (this.lastTwoGeneratedBlocks.length > 0) {
+            const lastBlockTypes = this.lastTwoGeneratedBlocks.map(b => this.getBaseFigureType(b));
+            candidates = candidates.filter(block => 
+                !lastBlockTypes.includes(this.getBaseFigureType(block))
+            );
+            
+            // Если после фильтрации не осталось кандидатов, используем все фигуры с минимальной частотой
+            if (candidates.length === 0) {
+                candidates = this.blockBag.filter(b => (b.FIGURE_TO_OFTEN || 0) === minFrequency);
+            }
+        }
         
         // Выбираем случайную фигуру из кандидатов
         const randomIndex = Math.floor(Math.random() * candidates.length);
