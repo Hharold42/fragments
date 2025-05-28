@@ -195,6 +195,7 @@ export class BlockGenerator {
     private blockBag: Block[] = [];
     private previewBlock: Block | null = null;
     private readonly criticalThreshold: number = 0.3; // Порог для определения критической ситуации
+    private lastTwoGeneratedBlocks: Block[] = []; // Хранит последние две выданные фигуры
 
     constructor() {
         this.evaluator = new DifficultyEvaluator();
@@ -203,7 +204,8 @@ export class BlockGenerator {
             id: `block-${index}`,
             name: `Block ${index + 1}`,
             matrix,
-            difficulty: this.getDifficultyForIndex(index)
+            difficulty: this.getDifficultyForIndex(index),
+            FIGURE_TO_OFTEN: 0 // Инициализируем маркер
         }));
         this.blockSetFinder = new BlockSetFinder(blocks);
         this.fillBlockBag();
@@ -254,13 +256,44 @@ export class BlockGenerator {
         this.previewBlock = this.blockBag[0];
     }
 
+    private updateFigureFrequency(block: Block) {
+        // Обновляем маркер частоты
+        block.FIGURE_TO_OFTEN = (block.FIGURE_TO_OFTEN || 0) + 1;
+        
+        // Обновляем историю последних выданных фигур
+        this.lastTwoGeneratedBlocks.push(block);
+        if (this.lastTwoGeneratedBlocks.length > 2) {
+            this.lastTwoGeneratedBlocks.shift();
+        }
+
+        // Проверяем и обнуляем маркеры для фигур, которые не выдавались 2 раза подряд
+        this.blockBag.forEach(b => {
+            if (!this.lastTwoGeneratedBlocks.includes(b)) {
+                b.FIGURE_TO_OFTEN = 0;
+            }
+        });
+    }
+
     private getNextBlock(): Block {
         if (this.blockBag.length === 0) {
             this.fillBlockBag();
         }
-        const block = this.blockBag.shift()!;
-        this.previewBlock = this.blockBag[0] || null;
-        return block;
+
+        // Находим фигуру с наименьшим значением FIGURE_TO_OFTEN
+        const minFrequency = Math.min(...this.blockBag.map(b => b.FIGURE_TO_OFTEN || 0));
+        const candidates = this.blockBag.filter(b => (b.FIGURE_TO_OFTEN || 0) === minFrequency);
+        
+        // Выбираем случайную фигуру из кандидатов
+        const randomIndex = Math.floor(Math.random() * candidates.length);
+        const selectedBlock = candidates[randomIndex];
+        
+        // Удаляем выбранную фигуру из мешка
+        this.blockBag = this.blockBag.filter(b => b !== selectedBlock);
+        
+        // Обновляем частоту появления
+        this.updateFigureFrequency(selectedBlock);
+        
+        return selectedBlock;
     }
 
     private isCriticalSituation(board: Matrix): boolean {

@@ -5,6 +5,7 @@ export interface Block {
     name: string;
     matrix: Matrix;
     difficulty: 'easy' | 'medium' | 'hard';
+    FIGURE_TO_OFTEN?: number;
 }
 
 export interface Position {
