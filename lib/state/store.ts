@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { Block, GameState, Position, ScoreResult, Matrix } from "../data/types";
+import { Block, GameState, Position, ScoreResult, Matrix, Cell } from "../data/types";
 import {
   placeBlock,
   clearLines,
@@ -57,7 +57,7 @@ export const useGameStore = create<
 
   board: Array(8)
     .fill(0)
-    .map(() => Array(8).fill(0)),
+    .map(() => Array(8).fill({ value: 0 })),
   currentPieces: [],
   score: 0,
   gameOver: false,
@@ -73,11 +73,12 @@ export const useGameStore = create<
   initializeGame: () => {
     const newBoard = Array(8)
       .fill(null)
-      .map(() => Array(8).fill(0));
+      .map(() => Array(8).fill({ value: 0 }));
     const newBlocks = blockGenerator.generateNextBlocks(newBoard);
+    const blocksWithInitialIndex = newBlocks.map((block, index) => ({ ...block, initialIndex: index }));
     set({
       board: newBoard,
-      currentPieces: newBlocks,
+      currentPieces: blocksWithInitialIndex,
       previewBlock: blockGenerator.getPreviewBlock(),
       score: 0,
       gameOver: false,
@@ -87,7 +88,7 @@ export const useGameStore = create<
       draggedPiece: null,
       dragPosition: null,
       lastScoreResult: null,
-      blockEvaluations: newBlocks.map(block => 
+      blockEvaluations: blocksWithInitialIndex.map(block => 
         difficultyEvaluator.evaluateBlock(block, newBoard)
       )
     });
@@ -102,7 +103,7 @@ export const useGameStore = create<
     // Проверяем, можно ли разместить фигуру
     const canPlace = draggedPiece.matrix.every((row, dy) =>
       row.every((cell, dx) => {
-        if (cell === 0) return true;
+        if (cell.value === 0) return true;
         const boardX = x + dx;
         const boardY = y + dy;
         return (
@@ -110,7 +111,7 @@ export const useGameStore = create<
           boardX < board[0].length &&
           boardY >= 0 &&
           boardY < board.length &&
-          board[boardY][boardX] === 0
+          board[boardY][boardX].value === 0
         );
       })
     );
@@ -121,15 +122,18 @@ export const useGameStore = create<
     const newBoard = board.map(row => [...row]);
     draggedPiece.matrix.forEach((row, dy) => {
       row.forEach((cell, dx) => {
-        if (cell === 1) {
-          newBoard[y + dy][x + dx] = 1;
+        if (cell.value === 1) {
+          newBoard[y + dy][x + dx] = {
+            value: 1,
+            color: draggedPiece.color
+          };
         }
       });
     });
 
     // Подсчитываем количество размещенных клеток
     const cellsPlaced = draggedPiece.matrix.reduce(
-      (sum, row) => sum + row.reduce((rowSum, cell) => rowSum + cell, 0),
+      (sum, row) => sum + row.reduce((rowSum, cell) => rowSum + cell.value, 0),
       0
     );
 
@@ -139,7 +143,7 @@ export const useGameStore = create<
     // Подсчитываем количество клеток фигуры в очищаемых линиях
     const cellsInLines = cellsToClear.reduce((sum, row, y) => {
       return sum + row.reduce((rowSum, cell, x) => {
-        if (cell) {
+        if (cell.value) {
           const relX = x - x;
           const relY = y - y;
           if (
@@ -147,7 +151,7 @@ export const useGameStore = create<
             relY < draggedPiece.matrix.length &&
             relX >= 0 &&
             relX < draggedPiece.matrix[0].length &&
-            draggedPiece.matrix[relY][relX] === 1
+            draggedPiece.matrix[relY][relX].value === 1
           ) {
             return rowSum + 1;
           }
@@ -185,7 +189,8 @@ export const useGameStore = create<
     if (newCurrentPieces.length === 0) {
       newRound = round + 1;
       newPiecesPlaced = 0;
-      newCurrentPieces = blockGenerator.generateNextBlocks(clearedBoard);
+      const generatedBlocks = blockGenerator.generateNextBlocks(clearedBoard);
+      newCurrentPieces = generatedBlocks.map((block, index) => ({ ...block, initialIndex: index }));
     }
 
     set({
@@ -210,7 +215,7 @@ export const useGameStore = create<
     set({
       board: Array(8)
         .fill(0)
-        .map(() => Array(8).fill(0)),
+        .map(() => Array(8).fill({ value: 0 })),
       currentPieces: [],
       score: 0,
       gameOver: false,

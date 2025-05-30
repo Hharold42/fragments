@@ -1,4 +1,4 @@
-import { Block, Matrix } from "../data/types";
+import { Block, Matrix, BlockColor, BLOCK_COLORS } from "../data/types";
 import { DifficultyEvaluator } from "./difficulty";
 import { findAllValidPositions } from "./positions";
 import { BlockSetFinder } from "./blockSetFinder";
@@ -7,167 +7,167 @@ import { BlockSetFinder } from "./blockSetFinder";
 const ALL_BLOCKS: Matrix[] = [
     // I (палка) - 2 варианта
     [
-        [1, 1, 1, 1]
+        [{ value: 1 }, { value: 1 }, { value: 1 }, { value: 1 }]
     ],
     [
-        [1],
-        [1],
-        [1],
-        [1]
+        [{ value: 1 }],
+        [{ value: 1 }],
+        [{ value: 1 }],
+        [{ value: 1 }]
     ],
 
     // O (квадрат) - 1 вариант
     [
-        [1, 1],
-        [1, 1]
+        [{ value: 1 }, { value: 1 }],
+        [{ value: 1 }, { value: 1 }]
     ],
 
     // T - 4 варианта
     [
-        [1, 1, 1],
-        [0, 1, 0]
+        [{ value: 1 }, { value: 1 }, { value: 1 }],
+        [{ value: 0 }, { value: 1 }, { value: 0 }]
     ],
     [
-        [0, 1, 0],
-        [1, 1, 1]
+        [{ value: 0 }, { value: 1 }, { value: 0 }],
+        [{ value: 1 }, { value: 1 }, { value: 1 }]
     ],
     [
-        [1, 0],
-        [1, 1],
-        [1, 0]
+        [{ value: 1 }, { value: 0 }],
+        [{ value: 1 }, { value: 1 }],
+        [{ value: 1 }, { value: 0 }]
     ],
     [
-        [0, 1],
-        [1, 1],
-        [0, 1]
+        [{ value: 0 }, { value: 1 }],
+        [{ value: 1 }, { value: 1 }],
+        [{ value: 0 }, { value: 1 }]
     ],
 
     // L - 4 варианта
     [
-        [1, 0],
-        [1, 0],
-        [1, 1]
+        [{ value: 1 }, { value: 0 }],
+        [{ value: 1 }, { value: 0 }],
+        [{ value: 1 }, { value: 1 }]
     ],
     [
-        [0, 1],
-        [0, 1],
-        [1, 1]
+        [{ value: 0 }, { value: 1 }],
+        [{ value: 0 }, { value: 1 }],
+        [{ value: 1 }, { value: 1 }]
     ],
     [
-        [1, 1],
-        [1, 0],
-        [1, 0]
+        [{ value: 1 }, { value: 1 }],
+        [{ value: 1 }, { value: 0 }],
+        [{ value: 1 }, { value: 0 }]
     ],
     [
-        [1, 1],
-        [0, 1],
-        [0, 1]
+        [{ value: 1 }, { value: 1 }],
+        [{ value: 0 }, { value: 1 }],
+        [{ value: 0 }, { value: 1 }]
     ],
 
     // J - 4 варианта (зеркальные L)
     [
-        [0, 1],
-        [0, 1],
-        [1, 1]
+        [{ value: 0 }, { value: 1 }],
+        [{ value: 0 }, { value: 1 }],
+        [{ value: 1 }, { value: 1 }]
     ],
     [
-        [1, 0],
-        [1, 0],
-        [1, 1]
+        [{ value: 1 }, { value: 0 }],
+        [{ value: 1 }, { value: 0 }],
+        [{ value: 1 }, { value: 1 }]
     ],
     [
-        [1, 1],
-        [0, 1],
-        [0, 1]
+        [{ value: 1 }, { value: 1 }],
+        [{ value: 0 }, { value: 1 }],
+        [{ value: 0 }, { value: 1 }]
     ],
     [
-        [1, 1],
-        [1, 0],
-        [1, 0]
+        [{ value: 1 }, { value: 1 }],
+        [{ value: 1 }, { value: 0 }],
+        [{ value: 1 }, { value: 0 }]
     ],
 
     // S - 4 варианта
     [
-        [0, 1, 1],
-        [1, 1, 0]
+        [{ value: 0 }, { value: 1 }, { value: 1 }],
+        [{ value: 1 }, { value: 1 }, { value: 0 }]
     ],
     [
-        [1, 1, 0],
-        [0, 1, 1]
+        [{ value: 1 }, { value: 1 }, { value: 0 }],
+        [{ value: 0 }, { value: 1 }, { value: 1 }]
     ],
     [
-        [1, 0],
-        [1, 1],
-        [0, 1]
+        [{ value: 1 }, { value: 0 }],
+        [{ value: 1 }, { value: 1 }],
+        [{ value: 0 }, { value: 1 }]
     ],
     [
-        [0, 1],
-        [1, 1],
-        [1, 0]
+        [{ value: 0 }, { value: 1 }],
+        [{ value: 1 }, { value: 1 }],
+        [{ value: 1 }, { value: 0 }]
     ],
 
     // Z - 4 варианта (зеркальные S)
     [
-        [1, 1, 0],
-        [0, 1, 1]
+        [{ value: 1 }, { value: 1 }, { value: 0 }],
+        [{ value: 0 }, { value: 1 }, { value: 1 }]
     ],
     [
-        [0, 1, 1],
-        [1, 1, 0]
+        [{ value: 0 }, { value: 1 }, { value: 1 }],
+        [{ value: 1 }, { value: 1 }, { value: 0 }]
     ],
     [
-        [0, 1],
-        [1, 1],
-        [1, 0]
+        [{ value: 0 }, { value: 1 }],
+        [{ value: 1 }, { value: 1 }],
+        [{ value: 1 }, { value: 0 }]
     ],
     [
-        [1, 0],
-        [1, 1],
-        [0, 1]
+        [{ value: 1 }, { value: 0 }],
+        [{ value: 1 }, { value: 1 }],
+        [{ value: 0 }, { value: 1 }]
     ],
 
     // 2x3 фигуры
     [
-        [1, 1, 1],
-        [1, 1, 1]
+        [{ value: 1 }, { value: 1 }, { value: 1 }],
+        [{ value: 1 }, { value: 1 }, { value: 1 }]
     ],
     [
-        [1, 1],
-        [1, 1],
-        [1, 1]
+        [{ value: 1 }, { value: 1 }],
+        [{ value: 1 }, { value: 1 }],
+        [{ value: 1 }, { value: 1 }]
     ],
     [
-        [1, 1, 1],
-        [0, 1, 0]
+        [{ value: 1 }, { value: 1 }, { value: 1 }],
+        [{ value: 0 }, { value: 1 }, { value: 0 }]
     ],
     [
-        [0, 1, 0],
-        [1, 1, 1]
+        [{ value: 0 }, { value: 1 }, { value: 0 }],
+        [{ value: 1 }, { value: 1 }, { value: 1 }]
     ],
 
     // 3x3 фигуры
     [
-        [1, 1, 1],
-        [1, 1, 1],
-        [1, 1, 1]
+        [{ value: 1 }, { value: 1 }, { value: 1 }],
+        [{ value: 1 }, { value: 1 }, { value: 1 }],
+        [{ value: 1 }, { value: 1 }, { value: 1 }]
     ],
 
     // Дополнительные фигуры
     [
-        [1, 1, 1],
-        [1, 0, 0]
+        [{ value: 1 }, { value: 1 }, { value: 1 }],
+        [{ value: 1 }, { value: 0 }, { value: 0 }]
     ],
     [
-        [1, 1, 1],
-        [0, 0, 1]
+        [{ value: 1 }, { value: 1 }, { value: 1 }],
+        [{ value: 0 }, { value: 0 }, { value: 1 }]
     ],
     [
-        [1, 0, 0],
-        [1, 1, 1]
+        [{ value: 1 }, { value: 0 }, { value: 0 }],
+        [{ value: 1 }, { value: 1 }, { value: 1 }]
     ],
     [
-        [0, 0, 1],
-        [1, 1, 1]
+        [{ value: 0 }, { value: 0 }, { value: 1 }],
+        [{ value: 1 }, { value: 1 }, { value: 1 }]
     ]
 ];
 
@@ -205,7 +205,8 @@ export class BlockGenerator {
             name: `Block ${index + 1}`,
             matrix,
             difficulty: this.getDifficultyForIndex(index),
-            FIGURE_TO_OFTEN: 0 // Инициализируем маркер
+            FIGURE_TO_OFTEN: 0, // Инициализируем маркер
+            color: this.getRandomColor() // Добавляем случайный цвет
         }));
         this.blockSetFinder = new BlockSetFinder(blocks);
         this.fillBlockBag();
@@ -251,37 +252,54 @@ export class BlockGenerator {
             [[1,1], [0,1], [0,1]]  // L перевернутая отраженная
         ];
 
-        return patterns.some(pattern => 
-            this.areMatricesSimilar(matrix, pattern)
-        );
+        return patterns.some(pattern => {
+            if (pattern.length !== rows || pattern[0].length !== cols) return false;
+            return pattern.every((row, y) =>
+                row.every((val, x) => matrix[y][x].value === val)
+            );
+        });
     }
 
     private isTShape(block: Block): boolean {
         const matrix = block.matrix;
+        const rows = matrix.length;
+        const cols = matrix[0].length;
+        
+        // Проверяем все возможные T-образные формы
         const patterns = [
             [[1,1,1], [0,1,0]], // T
             [[0,1,0], [1,1,1]], // T перевернутая
-            [[1,0], [1,1], [1,0]], // T повернутая влево
-            [[0,1], [1,1], [0,1]]  // T повернутая вправо
+            [[1,0], [1,1], [1,0]], // T повернутая
+            [[0,1], [1,1], [0,1]]  // T повернутая отраженная
         ];
 
-        return patterns.some(pattern => 
-            this.areMatricesSimilar(matrix, pattern)
-        );
+        return patterns.some(pattern => {
+            if (pattern.length !== rows || pattern[0].length !== cols) return false;
+            return pattern.every((row, y) =>
+                row.every((val, x) => matrix[y][x].value === val)
+            );
+        });
     }
 
     private isSShape(block: Block): boolean {
         const matrix = block.matrix;
+        const rows = matrix.length;
+        const cols = matrix[0].length;
+        
+        // Проверяем все возможные S-образные формы
         const patterns = [
             [[0,1,1], [1,1,0]], // S
-            [[1,1,0], [0,1,1]], // Z
+            [[1,1,0], [0,1,1]], // S отраженная
             [[1,0], [1,1], [0,1]], // S повернутая
-            [[0,1], [1,1], [1,0]]  // Z повернутая
+            [[0,1], [1,1], [1,0]]  // S повернутая отраженная
         ];
 
-        return patterns.some(pattern => 
-            this.areMatricesSimilar(matrix, pattern)
-        );
+        return patterns.some(pattern => {
+            if (pattern.length !== rows || pattern[0].length !== cols) return false;
+            return pattern.every((row, y) =>
+                row.every((val, x) => matrix[y][x].value === val)
+            );
+        });
     }
 
     private areMatricesSimilar(matrix1: Matrix, matrix2: Matrix): boolean {
@@ -289,51 +307,21 @@ export class BlockGenerator {
             return false;
         }
 
-        // Проверяем прямое совпадение
-        let isDirectMatch = true;
-        for (let i = 0; i < matrix1.length; i++) {
-            for (let j = 0; j < matrix1[0].length; j++) {
-                if (matrix1[i][j] !== matrix2[i][j]) {
-                    isDirectMatch = false;
-                    break;
-                }
-            }
-            if (!isDirectMatch) break;
-        }
-        if (isDirectMatch) return true;
-
-        // Проверяем отражение по горизонтали
-        let isHorizontalReflection = true;
-        for (let i = 0; i < matrix1.length; i++) {
-            for (let j = 0; j < matrix1[0].length; j++) {
-                if (matrix1[i][j] !== matrix2[i][matrix2[0].length - 1 - j]) {
-                    isHorizontalReflection = false;
-                    break;
-                }
-            }
-            if (!isHorizontalReflection) break;
-        }
-        if (isHorizontalReflection) return true;
-
-        // Проверяем отражение по вертикали
-        let isVerticalReflection = true;
-        for (let i = 0; i < matrix1.length; i++) {
-            for (let j = 0; j < matrix1[0].length; j++) {
-                if (matrix1[i][j] !== matrix2[matrix2.length - 1 - i][j]) {
-                    isVerticalReflection = false;
-                    break;
-                }
-            }
-            if (!isVerticalReflection) break;
-        }
-        return isVerticalReflection;
+        return matrix1.every((row, y) =>
+            row.every((cell, x) => cell.value === matrix2[y][x].value)
+        );
     }
 
     private calculateBlockSize(block: Block): number {
         return block.matrix.reduce(
-            (sum, row) => sum + row.reduce((rowSum, cell) => rowSum + cell, 0),
+            (sum, row) => sum + row.reduce((rowSum, cell) => rowSum + cell.value, 0),
             0
         );
+    }
+
+    private getRandomColor(): BlockColor {
+        const randomIndex = Math.floor(Math.random() * BLOCK_COLORS.length);
+        return BLOCK_COLORS[randomIndex];
     }
 
     private fillBlockBag() {
@@ -342,7 +330,9 @@ export class BlockGenerator {
             id: `block-${index}`,
             name: `Block ${index + 1}`,
             matrix,
-            difficulty: this.getDifficultyForIndex(index)
+            difficulty: this.getDifficultyForIndex(index),
+            color: this.getRandomColor(),
+            initialIndex: index,
         }));
 
         // Перемешиваем мешок
@@ -377,46 +367,22 @@ export class BlockGenerator {
         if (this.blockBag.length === 0) {
             this.fillBlockBag();
         }
-
-        // Находим фигуру с наименьшим значением FIGURE_TO_OFTEN
-        const minFrequency = Math.min(...this.blockBag.map(b => b.FIGURE_TO_OFTEN || 0));
-        let candidates = this.blockBag.filter(b => (b.FIGURE_TO_OFTEN || 0) === minFrequency);
-        
-        // Если есть последние выданные фигуры, исключаем фигуры того же типа
-        if (this.lastTwoGeneratedBlocks.length > 0) {
-            const lastBlockTypes = this.lastTwoGeneratedBlocks.map(b => this.getBaseFigureType(b));
-            candidates = candidates.filter(block => 
-                !lastBlockTypes.includes(this.getBaseFigureType(block))
-            );
-            
-            // Если после фильтрации не осталось кандидатов, используем все фигуры с минимальной частотой
-            if (candidates.length === 0) {
-                candidates = this.blockBag.filter(b => (b.FIGURE_TO_OFTEN || 0) === minFrequency);
-            }
-        }
-        
-        // Выбираем случайную фигуру из кандидатов
-        const randomIndex = Math.floor(Math.random() * candidates.length);
-        const selectedBlock = candidates[randomIndex];
-        
-        // Удаляем выбранную фигуру из мешка
-        this.blockBag = this.blockBag.filter(b => b !== selectedBlock);
-        
-        // Обновляем частоту появления
-        this.updateFigureFrequency(selectedBlock);
-        
-        return selectedBlock;
+        const block = this.blockBag.pop()!;
+        return {
+            ...block,
+            color: this.getRandomColor()
+        };
     }
 
     private isCriticalSituation(board: Matrix): boolean {
         // Проверяем заполненность верхних рядов
         const topRowsFilled = board.slice(0, 2).some(row => 
-            row.some(cell => cell === 1)
+            row.some(cell => cell.value === 1)
         );
 
         // Проверяем количество доступных позиций для размещения
         const availablePositions = board.reduce((count, row) => 
-            count + row.filter(cell => cell === 0).length, 0
+            count + row.filter(cell => cell.value === 0).length, 0
         );
         const totalCells = board.length * board[0].length;
         const fillRatio = 1 - (availablePositions / totalCells);
@@ -434,7 +400,7 @@ export class BlockGenerator {
 
         for (let y = 0; y < rows; y++) {
             for (let x = 0; x < cols; x++) {
-                if (board[y][x] === 0 && !visited.has(`${x},${y}`)) {
+                if (board[y][x].value === 0 && !visited.has(`${x},${y}`)) {
                     const areaSize = this.getEmptyAreaSize(board, x, y, visited);
                     if (areaSize > 12) { // Если пустая область больше 12 клеток
                         return true;
@@ -456,7 +422,7 @@ export class BlockGenerator {
             if (visited.has(key)) continue;
             visited.add(key);
 
-            if (board[y][x] === 0) {
+            if (board[y][x].value === 0) {
                 size++;
                 // Проверяем соседние клетки
                 const neighbors = [
@@ -468,7 +434,7 @@ export class BlockGenerator {
                     if (
                         nx >= 0 && nx < board[0].length &&
                         ny >= 0 && ny < board.length &&
-                        board[ny][nx] === 0 &&
+                        board[ny][nx].value === 0 &&
                         !visited.has(`${nx},${ny}`)
                     ) {
                         queue.push([nx, ny]);
@@ -487,14 +453,24 @@ export class BlockGenerator {
             if (suitableSets.length > 0) {
                 const bestSet = suitableSets[0];
                 console.log('Critical situation: Using calculated block set');
-                this.lastGeneratedBlocks = bestSet.blocks;
-                return bestSet.blocks;
+                this.lastGeneratedBlocks = bestSet.blocks.map((block, index) => ({
+                    ...block,
+                    initialIndex: index,
+                    color: block.color,
+                }));
+                return this.lastGeneratedBlocks;
             }
         }
 
         // В обычной ситуации генерируем случайные блоки
         console.log('Normal situation: Generating random blocks');
-        return this.generateRandomBlocks(board);
+        const blocks = this.generateRandomBlocks(board);
+        this.lastGeneratedBlocks = blocks.map((block, index) => ({
+            ...block,
+            initialIndex: index,
+            color: block.color,
+        }));
+        return this.lastGeneratedBlocks;
     }
 
     private generateRandomBlocks(board: Matrix): Block[] {
