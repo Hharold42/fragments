@@ -94,3 +94,45 @@ function isValidPlacement(board: Matrix, block: Block, position: Position): bool
 
     return true;
 }
+
+export function findAllValidPositions(board: Matrix, block: Block): Position[] {
+    const validPositions: Position[] = [];
+    
+    // Перебираем все возможные позиции на доске
+    for (let y = 0; y < board.length; y++) {
+        for (let x = 0; x < board[0].length; x++) {
+            // Проверяем, можно ли разместить блок в этой позиции
+            if (canPlaceBlock(board, block, { x, y })) {
+                validPositions.push({ x, y });
+            }
+        }
+    }
+    
+    return validPositions;
+}
+
+function canPlaceBlock(board: Matrix, block: Block, position: Position): boolean {
+    const { matrix } = block;
+    
+    // Проверяем каждую клетку блока
+    for (let y = 0; y < matrix.length; y++) {
+        for (let x = 0; x < matrix[0].length; x++) {
+            if (matrix[y][x] === 1) {
+                const boardX = position.x + x;
+                const boardY = position.y + y;
+                
+                // Проверяем границы доски
+                if (boardX < 0 || boardX >= board[0].length || boardY < 0 || boardY >= board.length) {
+                    return false;
+                }
+                
+                // Проверяем, что клетка на доске свободна
+                if (board[boardY][boardX] === 1) {
+                    return false;
+                }
+            }
+        }
+    }
+    
+    return true;
+}

@@ -1,3 +1,4 @@
+
 import { Block, Matrix, Position, Cell } from "../data/types";
 
 export function canPlaceBlock(
@@ -130,4 +131,74 @@ export function getCellsToClear(
 export function isGameOver(board: Matrix): boolean {
   // Проверяем, есть ли заполненные клетки в верхней строке
   return board[0].some((cell) => cell.value === 1);
+}
+
+interface BlockPlacement {
+    block: Block;
+    positions: Position[];
+}
+
+export function generateGuaranteedBlocks(board: Matrix): Block[] {
+    // Получаем все возможные размещения для каждой фигуры
+    const blockPlacements: BlockPlacement[] = BLOCKS.map(block => ({
+        block,
+        positions: findAllValidPositions(board, block)
+    }));
+
+    // Фильтруем фигуры, которые можно разместить
+    const placeableBlocks = blockPlacements.filter(bp => bp.positions.length > 0);
+
+    // Если нет размещаемых фигур, возвращаем случайные
+    if (placeableBlocks.length === 0) {
+        return generateRandomBlocks();
+    }
+
+    // Выбираем первую фигуру, которая гарантированно размещается
+    const firstBlock = placeableBlocks[Math.floor(Math.random() * placeableBlocks.length)];
+    
+    // Создаем временную доску с размещенной первой фигурой
+    const tempBoard = JSON.parse(JSON.stringify(board));
+    const firstPosition = firstBlock.positions[Math.floor(Math.random() * firstBlock.positions.length)];
+    placeBlock(tempBoard, firstBlock.block, firstPosition);
+
+    // Ищем фигуры, которые можно разместить после первой
+    const secondPlacements = blockPlacements
+        .filter(bp => bp.block.id !== firstBlock.block.id)
+        .map(bp => ({
+            block: bp.block,
+            positions: findAllValidPositions(tempBoard, bp.block)
+        }))
+        .filter(bp => bp.positions.length > 0);
+
+    // Если нет фигур для второго размещения, возвращаем случайные
+    if (secondPlacements.length === 0) {
+        return generateRandomBlocks();
+    }
+
+    // Выбираем вторую фигуру
+    const secondBlock = secondPlacements[Math.floor(Math.random() * secondPlacements.length)];
+    
+    // Размещаем вторую фигуру
+    const secondPosition = secondBlock.positions[Math.floor(Math.random() * secondBlock.positions.length)];
+    placeBlock(tempBoard, secondBlock.block, secondPosition);
+
+    // Ищем фигуры для третьего размещения
+    const thirdPlacements = blockPlacements
+        .filter(bp => bp.block.id !== firstBlock.block.id && bp.block.id !== secondBlock.block.id)
+        .map(bp => ({
+            block: bp.block,
+            positions: findAllValidPositions(tempBoard, bp.block)
+        }))
+        .filter(bp => bp.positions.length > 0);
+
+    // Если нет фигур для третьего размещения, возвращаем случайные
+    if (thirdPlacements.length === 0) {
+        return generateRandomBlocks();
+    }
+
+    // Выбираем третью фигуру
+    const thirdBlock = thirdPlacements[Math.floor(Math.random() * thirdPlacements.length)];
+
+    // Возвращаем все три фигуры
+    return [firstBlock.block, secondBlock.block, thirdBlock.block];
 }

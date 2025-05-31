@@ -141,6 +141,7 @@ export const useGameStore = create<
     const scoreResult = calculateScore(newBoard, board, draggedPiece, cellsToClear, { x, y });
     const { newBoard: boardAfterClearing } = clearLines(newBoard);
 
+
     const newRound = piecesPlaced + 1 >= 3 ? round + 1 : round;
     const newPiecesPlaced = piecesPlaced + 1 >= 3 ? 0 : piecesPlaced + 1;
 

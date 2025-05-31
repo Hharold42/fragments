@@ -7,16 +7,16 @@ interface ScoreDisplayProps {
 }
 
 export const ScoreDisplay: React.FC<ScoreDisplayProps> = ({ score, className = '' }) => {
-  const [displayScore, setDisplayScore] = useState(score.totalScore);
+  const [displayScore, setDisplayScore] = useState(score.totalPoints);
   const [isAnimating, setIsAnimating] = useState(false);
 
   useEffect(() => {
-    if (score.totalScore !== displayScore) {
+    if (score.totalPoints !== displayScore) {
       setIsAnimating(true);
       // Анимация изменения счета
       const animationDuration = 500; // ms
       const startScore = displayScore;
-      const endScore = score.totalScore;
+      const endScore = score.totalPoints;
       const startTime = performance.now();
 
       const animate = (currentTime: number) => {
@@ -38,21 +38,21 @@ export const ScoreDisplay: React.FC<ScoreDisplayProps> = ({ score, className = '
 
       requestAnimationFrame(animate);
     }
-  }, [score.totalScore]);
+  }, [score.totalPoints]);
 
   return (
     <div className={`flex flex-col items-center ${className}`}>
       <div className={`text-4xl font-bold transition-all duration-300 ${isAnimating ? 'scale-110' : 'scale-100'}`}>
         {displayScore.toLocaleString()}
       </div>
-      {score.comboScore > 0 && (
+      {score.comboLevel > 0 && (
         <div className="text-lg text-yellow-500 animate-bounce">
-          +{score.comboScore} комбо!
+          Комбо: {score.comboLevel} (×{score.comboBonus})
         </div>
       )}
-      {score.fieldBonus > 0 && (
+      {score.isBoardCleared && (
         <div className="text-lg text-green-500 animate-pulse">
-          +{score.fieldBonus} бонус за пустое поле!
+          +300 бонус за очистку поля!
         </div>
       )}
     </div>

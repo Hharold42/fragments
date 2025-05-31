@@ -33,6 +33,7 @@ export interface ScoreResult {
   comboBonus: number;
   isBoardCleared: boolean;
   totalPoints: number;
+
 }
 
 export interface GameState {
