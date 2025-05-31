@@ -77,7 +77,7 @@ export const Piece: React.FC<PieceProps> = ({ color, size = 32 }) => {
         <div
           className="absolute"
           style={{
-            inset: 2,
+            inset: 1,
             background: `linear-gradient(135deg, ${gradients.inner.start}, ${gradients.inner.end})`,
             borderRadius: radius,
           }}
