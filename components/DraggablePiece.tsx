@@ -21,23 +21,20 @@ export const DraggablePiece: React.FC<DraggablePieceProps> = ({
   cellSize = 32,
 }) => {
   if (!piece || !piece.matrix) {
-    console.warn('Invalid piece in DraggablePiece:', piece);
     return null;
   }
 
   const handleStart = (e: React.MouseEvent | React.TouchEvent) => {
-    e.preventDefault();
     if (isGhost || !onStart) return;
 
     const { clientX, clientY } = getEventCoordinates(e);
-
     onStart(piece, clientX, clientY);
   };
 
-  const baseClasses = `grid gap-[1px] ${isGhost ? "pointer-events-none" : "cursor-pointer"}`;
+  const baseClasses = `grid gap-0.5 ${isGhost ? "pointer-events-none" : "cursor-pointer"}`;
   const containerClasses = isGhost
     ? "fixed z-[1000] opacity-70 transition-transform duration-200"
-    : `p-px rounded-sm transition-all opacity-in-animation cursor-pointer`;
+    : `p-2 rounded-lg transition-all opacity-in-animation cursor-pointer`;
 
   return (
     <div
@@ -48,12 +45,22 @@ export const DraggablePiece: React.FC<DraggablePieceProps> = ({
     >
       <div className={baseClasses}>
         {piece.matrix.map((row, y) => (
-          <div key={y} className="flex">
+          <div key={y} className="flex gap-0.5">
             {row.map((cell, x) => (
               cell.value === 1 ? (
-                <Piece key={`${x}-${y}`} color={piece.color} size={isGhost ? 32 : cellSize} />
+                <Piece 
+                  key={`${x}-${y}`} 
+                  color={piece.color} 
+                  size={isGhost ? 32 : cellSize} 
+                />
               ) : (
-                <div key={`${x}-${y}`} style={{ width: isGhost ? 32 : cellSize, height: isGhost ? 32 : cellSize }} />
+                <div 
+                  key={`${x}-${y}`} 
+                  style={{ 
+                    width: isGhost ? 32 : cellSize, 
+                    height: isGhost ? 32 : cellSize 
+                  }} 
+                />
               )
             ))}
           </div>

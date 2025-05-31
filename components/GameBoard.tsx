@@ -28,13 +28,40 @@ const useGridPosition = (cellSize: number) => {
     const { clientX, clientY } = getEventCoordinates(e);
     const rect = boardRef.current.getBoundingClientRect();
 
-    // Базовое смещение для призрака
+    // Получаем перетаскиваемую фигуру из стора, так как useGridPosition не зависит от нее напрямую
+    const { draggedPiece } = useGameStore.getState();
+
+    if (!draggedPiece) return null;
+
+    // Базовое смещение для призрака (можно уточнить)
     const ghostX = clientX - cellSize * 1.5;
     const ghostY = clientY - cellSize * 4.5;
 
     const baseX = Math.floor((ghostX - rect.left) / cellSize);
     const baseY = Math.floor((ghostY - rect.top) / cellSize);
 
+    // Вычисляем размеры фигуры в ячейках
+    const pieceWidthCells = draggedPiece.matrix[0].length;
+    const pieceHeightCells = draggedPiece.matrix.length;
+
+    console.log("calculateGridPosition debug:", {
+        clientX, clientY, rectTop: rect.top, rectLeft: rect.left,
+        ghostX, ghostY, baseX, baseY,
+        pieceWidthCells, pieceHeightCells
+    });
+
+    // Проверяем, находится ли фигура полностью в пределах доски
+    if (
+        baseX < 0 ||
+        baseY < 0 ||
+        baseX + pieceWidthCells > 8 || // Ширина доски 8 ячеек
+        baseY + pieceHeightCells > 8 // Высота доски 8 ячеек
+    ) {
+        console.log("calculateGridPosition: Figure out of bounds, returning null");
+        return null;
+    }
+
+    console.log("calculateGridPosition: Figure within bounds");
     return findNearestValidPosition(validPositions, { x: baseX, y: baseY });
   };
 
@@ -88,7 +115,9 @@ export const GameBoard: React.FC<GameBoardProps> = ({
       scorePotential: number;
     }>
   >([]);
-  const [potentialClearHighlight, setPotentialClearHighlight] = useState<boolean[][]>([]);
+  const [potentialClearHighlight, setPotentialClearHighlight] = useState<
+    boolean[][]
+  >([]);
   const [placedPiecesCount, setPlacedPiecesCount] = useState(0);
 
   const blockGenerator = new BlockGenerator();
@@ -100,7 +129,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
       const timer = setTimeout(() => {
         setClearingCells([]);
         setIsAnimating(false);
-      }, 300); // Время должно совпадать с длительностью анимации
+      }, 300);
       return () => clearTimeout(timer);
     }
   }, [isAnimating]);
@@ -109,11 +138,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
     if (currentPieces.length === 0) {
       initializeGame();
     }
-  }, []);
-
-  useEffect(() => {
-    generateNewBlocks();
-  }, []);
+  }, [currentPieces.length, initializeGame]);
 
   useEffect(() => {
     if (currentPieces.length > 0) {
@@ -130,7 +155,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
     setCurrentPieces(newBlocks);
     setPreviewBlock(blockGenerator.getPreviewBlock());
     setPlacedPiecesCount(0); // Reset placed pieces count when generating new blocks
-  }, [board]);
+  }, [board, blockGenerator, setCurrentPieces, setPreviewBlock]);
 
   const handlePieceStart = (piece: Block, x: number, y: number) => {
     startDrag(piece);
@@ -147,27 +172,13 @@ export const GameBoard: React.FC<GameBoardProps> = ({
       if (hasCellsToClear) {
         setClearingCells(cellsToClear);
         setIsAnimating(true);
-
         placePiece(x, y);
-        const newPlacedCount = placedPiecesCount + 1;
-        setPlacedPiecesCount(newPlacedCount);
-
         setTimeout(() => {
           setClearingCells([]);
           setIsAnimating(false);
-          // Only generate new blocks if all pieces are placed
-          if (newPlacedCount >= 3) {
-            generateNewBlocks();
-          }
         }, 500);
       } else {
         placePiece(x, y);
-        const newPlacedCount = placedPiecesCount + 1;
-        setPlacedPiecesCount(newPlacedCount);
-        // Only generate new blocks if all pieces are placed
-        if (newPlacedCount >= 3) {
-          generateNewBlocks();
-        }
       }
     }
   };
@@ -176,7 +187,6 @@ export const GameBoard: React.FC<GameBoardProps> = ({
     const handleMove = (e: MouseEvent | TouchEvent) => {
       if (!draggedPiece || !boardRef.current) return;
 
-      // Предотвращаем скролл на мобильных устройствах
       if (e instanceof TouchEvent) {
         e.preventDefault();
       }
@@ -184,57 +194,28 @@ export const GameBoard: React.FC<GameBoardProps> = ({
       const { clientX, clientY } = getEventCoordinates(e);
       updateDrag({ x: clientX, y: clientY });
 
-      const rect = boardRef.current.getBoundingClientRect();
-
-      // Вычисляем размеры фигуры в пикселях
-      const pieceWidth = draggedPiece.matrix[0].length * 32;
-      const pieceHeight = draggedPiece.matrix.length * 32;
-
-      // Вычисляем координаты фигуры относительно курсора
-      const pieceLeft = clientX - 32;
-      const pieceRight = pieceLeft + pieceWidth + 32 * 2;
-      const pieceTop = clientY - 32 * 4;
-      const pieceBottom = pieceTop + pieceHeight + 32 * 2;
-
-      // Проверяем, находится ли фигура над полем с отступом
-      const isPieceOverBoard =
-        pieceRight >= rect.left &&
-        pieceLeft <= rect.right &&
-        pieceBottom >= rect.top &&
-        pieceTop <= rect.bottom;
-
-      if (isPieceOverBoard) {
-        const nearestPosition = calculateGridPosition(e);
-        setHoverCell(nearestPosition);
-
-        // Calculate potential clears and set highlight state
-        if (nearestPosition) {
-          const potentialCellsToClear = getCellsToClear(board, draggedPiece, nearestPosition);
-          setPotentialClearHighlight(potentialCellsToClear);
-        } else {
-           setPotentialClearHighlight([]);
-        }
-      } else {
-        setHoverCell(null);
-        setPotentialClearHighlight([]); // Clear highlight if not over board
-      }
+      const nearestPosition = calculateGridPosition(e);
+      setHoverCell(nearestPosition);
     };
 
     const handleStart = (e: TouchEvent) => {
-      // Предотвращаем скролл при начале перетаскивания
       e.preventDefault();
     };
 
     const handleEnd = (e: MouseEvent | TouchEvent) => {
-      if (draggedPiece && hoverCell) {
-        handlePiecePlacement(hoverCell.x, hoverCell.y);
+      if (draggedPiece) {
+        if (hoverCell) {
+          // Фигура отпущена над допустимой позицией, размещаем ее
+          handlePiecePlacement(hoverCell.x, hoverCell.y);
+        } else {
+          // Фигура отпущена вне допустимой позиции, отменяем перетаскивание
+          endDrag();
+        }
       }
-      endDrag();
+      // Сбрасываем hoverCell в любом случае после завершения перетаскивания
       setHoverCell(null);
-      setPotentialClearHighlight([]); // Clear highlight on drag end
     };
 
-    // Добавляем обработчик для предотвращения скролла при начале перетаскивания
     window.addEventListener("touchstart", handleStart, { passive: false });
     window.addEventListener("mousemove", handleMove);
     window.addEventListener("touchmove", handleMove, { passive: false });
@@ -250,7 +231,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
       window.removeEventListener("touchend", handleEnd);
       window.removeEventListener("touchcancel", handleEnd);
     };
-  }, [dragPosition, draggedPiece, updateDrag, endDrag, setHoverCell]);
+  }, [draggedPiece, updateDrag, endDrag, setHoverCell, board, calculateGridPosition, hoverCell]);
 
   return (
     <div className="flex flex-col items-center gap-8 min-h-screen bg-blue-900 p-4">
@@ -287,7 +268,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                 let isClearing = false;
                 let isPotentiallyCleared = false;
 
-                if (hoverCell && draggedPiece) {
+                if (draggedPiece && hoverCell) {
                   const pieceMatrix = draggedPiece.matrix;
                   const pieceX = x - hoverCell.x;
                   const pieceY = y - hoverCell.y;
@@ -320,7 +301,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                     } ${highlight ? "ring-2 ring-blue-500" : ""} ${
                       willBeCleared ? "clearing-highlight" : ""
                     } ${isClearing ? "shaking" : ""} ${
-                      isPotentiallyCleared ? "potential-clear-highlight" : "" // Apply potential highlight class
+                      isPotentiallyCleared ? "potential-clear-highlight" : ""
                     }`}
                   >
                     {cell.value === 1 && cell.color && (
@@ -336,25 +317,32 @@ export const GameBoard: React.FC<GameBoardProps> = ({
 
       {/* Draggable Pieces */}
       <div className="flex justify-center gap-4 mt-4">
-        {[0, 1, 2].map((index) => {
-          const pieceToShow = currentPieces.find(piece => piece.initialIndex === index);
+        {currentPieces.map((piece) => {
+          const isBeingDragged = draggedPiece?.uniqueId === piece.uniqueId;
+
           return (
-            <div key={index} className="w-24 h-24 flex items-center justify-center">
-              {pieceToShow && (
-                <DraggablePiece
-                  piece={pieceToShow}
-                  onStart={handlePieceStart}
-                  cellSize={12}
-                  style={
-                    draggedPiece?.id === pieceToShow.id && dragPosition
-                      ? {
-                          left: dragPosition.x,
-                          top: dragPosition.y - 100,
-                          transform: "scale(120%)",
-                        }
-                      : {}
+            <div
+              key={piece.uniqueId}
+              className={`flex items-center justify-center ${isBeingDragged ? 'fixed z-[1000] pointer-events-none opacity-70 transition-transform duration-200' : ''}`}
+              style={
+                isBeingDragged && dragPosition
+                  ? {
+                      left: dragPosition.x - 32,
+                      top: dragPosition.y - 32 * 2,
+                    }
+                  : {
+                      width: '96px',
+                      height: '96px',
                   }
-                  isGhost={draggedPiece?.id === pieceToShow.id}
+              }
+            >
+              {piece && (
+                <DraggablePiece
+                  piece={piece}
+                  onStart={handlePieceStart}
+                  cellSize={32}
+                  style={{}}
+                  isGhost={isBeingDragged}
                 />
               )}
             </div>

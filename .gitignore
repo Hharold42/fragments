@@ -16,6 +16,8 @@
 # next.js
 /.next/
 /out/
+/fragments_old/
+/fragments_old
 
 # production
 /build

@@ -9,6 +9,7 @@ export type Matrix = Cell[][];
 
 export interface Block {
   id: string;
+  uniqueId: string;
   name: string;
   matrix: Matrix;
   difficulty: 'easy' | 'medium' | 'hard';

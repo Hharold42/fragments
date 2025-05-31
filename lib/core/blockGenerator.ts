@@ -1,4 +1,4 @@
-import { Block, Matrix, BlockColor, BLOCK_COLORS } from "../data/types";
+import { Block, Matrix, BlockColor, BLOCK_COLORS, Position, Cell } from "../data/types";
 import { DifficultyEvaluator } from "./difficulty";
 import { findAllValidPositions } from "./positions";
 import { BlockSetFinder } from "./blockSetFinder";
@@ -180,33 +180,32 @@ ALL_BLOCKS.forEach((matrix, index) => {
 
 // Группируем фигуры по сложности
 const BLOCKS_BY_DIFFICULTY = {
-    easy: [0, 1, 2], // I, O
+    easy: [0, 1, 2, 24, 25], // I, O (2x2), 2x3, 3x3
     medium: [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23], // T, L, J, S, Z
-    hard: [24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43] // 2x3, 3x3, дополнительные
+    hard: [26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43] // остальные
 };
 
 export class BlockGenerator {
     private readonly evaluator: DifficultyEvaluator;
     private readonly blockSetFinder: BlockSetFinder;
-    private readonly minPlacementOptions: number = 3;
-    private readonly maxDifficulty: number = 80;
-    private readonly minScorePotential: number = 30;
     private lastGeneratedBlocks: Block[] = [];
     private blockBag: Block[] = [];
     private previewBlock: Block | null = null;
-    private readonly criticalThreshold: number = 0.3; // Порог для определения критической ситуации
-    private lastTwoGeneratedBlocks: Block[] = []; // Хранит последние две выданные фигуры
+    private readonly comboThreshold: number = 0.3; // Уменьшаем порог для более частых комбо
+    private readonly maxRepeatedBlocks: number = 2; // Уменьшаем количество повторений
+    private readonly minComboPotential: number = 2; // Минимальное количество потенциальных линий для комбо
+    private readonly comboChance: number = 0.6; // Шанс генерации комбо-набора
+    private readonly complementaryChance: number = 0.3; // Шанс генерации комплементарных фигур
 
     constructor() {
         this.evaluator = new DifficultyEvaluator();
-        // Создаем блоки из матриц
         const blocks: Block[] = ALL_BLOCKS.map((matrix, index) => ({
             id: `block-${index}`,
+            uniqueId: `block-${index}_${Date.now()}`,
             name: `Block ${index + 1}`,
             matrix,
             difficulty: this.getDifficultyForIndex(index),
-            FIGURE_TO_OFTEN: 0, // Инициализируем маркер
-            color: this.getRandomColor() // Добавляем случайный цвет
+            color: this.getRandomColor()
         }));
         this.blockSetFinder = new BlockSetFinder(blocks);
         this.fillBlockBag();
@@ -325,14 +324,13 @@ export class BlockGenerator {
     }
 
     private fillBlockBag() {
-        // Создаем мешок со всеми блоками
         this.blockBag = ALL_BLOCKS.map((matrix, index) => ({
             id: `block-${index}`,
+            uniqueId: `block-${index}_${Date.now()}`,
             name: `Block ${index + 1}`,
             matrix,
             difficulty: this.getDifficultyForIndex(index),
-            color: this.getRandomColor(),
-            initialIndex: index,
+            color: this.getRandomColor()
         }));
 
         // Перемешиваем мешок
@@ -345,160 +343,145 @@ export class BlockGenerator {
         this.previewBlock = this.blockBag[0];
     }
 
-    private updateFigureFrequency(block: Block) {
-        // Обновляем маркер частоты
-        block.FIGURE_TO_OFTEN = (block.FIGURE_TO_OFTEN || 0) + 1;
-        
-        // Обновляем историю последних выданных фигур
-        this.lastTwoGeneratedBlocks.push(block);
-        if (this.lastTwoGeneratedBlocks.length > 2) {
-            this.lastTwoGeneratedBlocks.shift();
-        }
-
-        // Проверяем и обнуляем маркеры для фигур, которые не выдавались 2 раза подряд
-        this.blockBag.forEach(b => {
-            if (!this.lastTwoGeneratedBlocks.includes(b)) {
-                b.FIGURE_TO_OFTEN = 0;
-            }
-        });
-    }
-
-    private getNextBlock(): Block {
-        if (this.blockBag.length === 0) {
-            this.fillBlockBag();
-        }
-        const block = this.blockBag.pop()!;
-        return {
-            ...block,
-            color: this.getRandomColor()
-        };
-    }
-
-    private isCriticalSituation(board: Matrix): boolean {
-        // Проверяем заполненность верхних рядов
-        const topRowsFilled = board.slice(0, 2).some(row => 
-            row.some(cell => cell.value === 1)
-        );
-
-        // Проверяем количество доступных позиций для размещения
-        const availablePositions = board.reduce((count, row) => 
-            count + row.filter(cell => cell.value === 0).length, 0
-        );
-        const totalCells = board.length * board[0].length;
-        const fillRatio = 1 - (availablePositions / totalCells);
-
-        // Проверяем наличие больших пустых областей
-        const hasLargeEmptyAreas = this.checkForLargeEmptyAreas(board);
-
-        return topRowsFilled || fillRatio > 0.7 || hasLargeEmptyAreas;
-    }
-
-    private checkForLargeEmptyAreas(board: Matrix): boolean {
-        const visited = new Set<string>();
+    private findComboOpportunities(board: Matrix): { positions: Position[], score: number }[] {
+        const opportunities: { positions: Position[], score: number }[] = [];
         const rows = board.length;
         const cols = board[0].length;
 
+        // Проверяем каждую позицию на доске
         for (let y = 0; y < rows; y++) {
             for (let x = 0; x < cols; x++) {
-                if (board[y][x].value === 0 && !visited.has(`${x},${y}`)) {
-                    const areaSize = this.getEmptyAreaSize(board, x, y, visited);
-                    if (areaSize > 12) { // Если пустая область больше 12 клеток
-                        return true;
+                // Пропускаем занятые клетки
+                if (board[y][x].value === 1) continue;
+
+                // Проверяем все возможные фигуры
+                for (const block of this.blockBag) {
+                    const positions = findAllValidPositions(board, block);
+                    
+                    for (const pos of positions) {
+                        // Проверяем, сколько линий может быть очищено
+                        const linesToClear = this.countLinesToClear(board);
+                        if (linesToClear >= this.minComboPotential) {
+                            opportunities.push({
+                                positions: [pos],
+                                score: linesToClear
+                            });
+                        }
                     }
                 }
             }
         }
-        return false;
+
+        // Сортируем возможности по количеству потенциальных линий
+        return opportunities.sort((a, b) => b.score - a.score);
     }
 
-    private getEmptyAreaSize(board: Matrix, startX: number, startY: number, visited: Set<string>): number {
-        const queue = [[startX, startY]];
-        let size = 0;
+    private countLinesToClear(board: Matrix): number {
+        let count = 0;
+        
+        // Проверяем строки
+        for (let y = 0; y < board.length; y++) {
+            if (board[y].every(cell => cell.value === 1)) count++;
+        }
+        
+        // Проверяем столбцы
+        for (let x = 0; x < board[0].length; x++) {
+            if (board.every(row => row[x].value === 1)) count++;
+        }
+        
+        return count;
+    }
 
-        while (queue.length > 0) {
-            const [x, y] = queue.shift()!;
-            const key = `${x},${y}`;
+    private findComplementaryBlocks(board: Matrix, firstBlock: Block, firstPosition: Position): Block[] {
+        const complementaryBlocks: Block[] = [];
+        const rows = board.length;
+        const cols = board[0].length;
 
-            if (visited.has(key)) continue;
-            visited.add(key);
+        // Создаем временную доску с размещенной первой фигурой
+        const tempBoard = board.map(row => [...row]);
+        firstBlock.matrix.forEach((row, dy) => {
+            row.forEach((cell, dx) => {
+                if (cell.value === 1) {
+                    tempBoard[firstPosition.y + dy][firstPosition.x + dx] = { value: 1, color: firstBlock.color };
+                }
+            });
+        });
 
-            if (board[y][x].value === 0) {
-                size++;
-                // Проверяем соседние клетки
-                const neighbors = [
-                    [x + 1, y], [x - 1, y],
-                    [x, y + 1], [x, y - 1]
-                ];
+        // Ищем фигуры, которые могут создать комбо с первой
+        for (const block of this.blockBag) {
+            if (block.id === firstBlock.id) continue;
 
-                for (const [nx, ny] of neighbors) {
-                    if (
-                        nx >= 0 && nx < board[0].length &&
-                        ny >= 0 && ny < board.length &&
-                        board[ny][nx].value === 0 &&
-                        !visited.has(`${nx},${ny}`)
-                    ) {
-                        queue.push([nx, ny]);
-                    }
+            const positions = findAllValidPositions(tempBoard, block);
+            for (const pos of positions) {
+                const linesToClear = this.countLinesToClear(tempBoard);
+                if (linesToClear >= this.minComboPotential) {
+                    complementaryBlocks.push(block);
+                    break;
                 }
             }
         }
-        return size;
+
+        return complementaryBlocks;
     }
 
     generateNextBlocks(board: Matrix): Block[] {
-        // Проверяем, является ли ситуация критической
-        if (this.isCriticalSituation(board)) {
-            // Ищем подходящие наборы блоков
-            const suitableSets = this.blockSetFinder.findSuitableBlockSets(board);
-            if (suitableSets.length > 0) {
-                const bestSet = suitableSets[0];
-                console.log('Critical situation: Using calculated block set');
-                this.lastGeneratedBlocks = bestSet.blocks.map((block, index) => ({
-                    ...block,
-                    initialIndex: index,
-                    color: block.color,
-                }));
-                return this.lastGeneratedBlocks;
+        // Сначала проверяем возможность создания комбо
+        if (Math.random() < this.comboChance) {
+            const comboOpportunities = this.findComboOpportunities(board);
+            if (comboOpportunities.length > 0) {
+                // Выбираем лучшую возможность
+                const bestOpportunity = comboOpportunities[0];
+                const firstBlock = this.blockBag[Math.floor(Math.random() * this.blockBag.length)];
+                
+                // Ищем комплементарные блоки
+                const complementaryBlocks = this.findComplementaryBlocks(board, firstBlock, bestOpportunity.positions[0]);
+                
+                if (complementaryBlocks.length >= 2) {
+                    // Создаем набор из 3 фигур: первая + 2 комплементарные
+                    const selectedBlocks = [
+                        firstBlock,
+                        complementaryBlocks[0],
+                        complementaryBlocks[1]
+                    ];
+
+                    // Добавляем уникальные ID и цвета
+                    return selectedBlocks.map((block, index) => ({
+                        ...block,
+                        uniqueId: `${block.id}_${Date.now()}_${index}`,
+                        color: this.getRandomColor()
+                    }));
+                }
             }
         }
 
-        // В обычной ситуации генерируем случайные блоки
-        console.log('Normal situation: Generating random blocks');
-        const blocks = this.generateRandomBlocks(board);
-        this.lastGeneratedBlocks = blocks.map((block, index) => ({
-            ...block,
-            initialIndex: index,
-            color: block.color,
-        }));
-        return this.lastGeneratedBlocks;
+        // Если не удалось создать комбо, используем случайную генерацию
+        return this.generateRandomBlocks(board);
     }
 
     private generateRandomBlocks(board: Matrix): Block[] {
-        const blocks: Block[] = [];
-        const maxAttempts = 10;
-        let attempts = 0;
+        const selectedBlocks: Block[] = [];
+        const usedTypes = new Set<string>();
 
-        while (blocks.length < 3 && attempts < maxAttempts) {
-            const block = this.getNextBlock();
-            const validPositions = findAllValidPositions(board, block);
+        while (selectedBlocks.length < 3) {
+            // Выбираем случайную фигуру из мешка
+            const randomIndex = Math.floor(Math.random() * this.blockBag.length);
+            const block = this.blockBag[randomIndex];
             
-            if (validPositions.length > 0) {
-                blocks.push(block);
-            } else {
-                // Если блок нельзя разместить, возвращаем его в конец мешка
-                this.blockBag.push(block);
+            // Проверяем, не превышен ли лимит повторений
+            const blockType = this.getBaseFigureType(block);
+            const typeCount = selectedBlocks.filter(b => this.getBaseFigureType(b) === blockType).length;
+            
+            if (typeCount < this.maxRepeatedBlocks) {
+                selectedBlocks.push({
+                    ...block,
+                    uniqueId: `${block.id}_${Date.now()}_${selectedBlocks.length}`,
+                    color: this.getRandomColor()
+                });
+                usedTypes.add(blockType);
             }
-            attempts++;
         }
 
-        // Если не набрали достаточно блоков, добавляем любые доступные
-        while (blocks.length < 3) {
-            const block = this.getNextBlock();
-            blocks.push(block);
-        }
-
-        this.lastGeneratedBlocks = blocks;
-        return blocks;
+        return selectedBlocks;
     }
 
     getPreviewBlock(): Block | null {
