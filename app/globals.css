@@ -134,3 +134,12 @@ body {
   animation: shake 0.2s ease-in-out;
 }
 
+.clearing-highlight {
+  background-color: rgba(255, 0, 0, 0.5); /* Example highlight color */
+}
+
+/* Add styles for the potential clear highlight */
+.potential-clear-highlight {
+  background-color: rgba(55, 65, 81, 0.6); /* Tailwind gray-700 with 60% opacity */
+}
+

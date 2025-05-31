@@ -1,16 +1,5 @@
-import { Block, Matrix, Position } from "../data/types";
-import { BLOCKS } from "../data/pieces";
-import { findAllValidPositions } from "./positions";
 
-export function generateRandomBlocks(): Block[] {
-  const easy = BLOCKS.filter((b) => b.difficulty === "easy");
-  const medium = BLOCKS.filter((b) => b.difficulty === "medium");
-  const hard = BLOCKS.filter((b) => b.difficulty === "hard");
-
-  const random = (arr: Block[]) => arr[Math.floor(Math.random() * arr.length)];
-
-  return [random(easy), random(medium), random(hard)];
-}
+import { Block, Matrix, Position, Cell } from "../data/types";
 
 export function canPlaceBlock(
   board: Matrix,
@@ -33,7 +22,7 @@ export function canPlaceBlock(
   // Проверяем коллизии с существующими блоками
   for (let i = 0; i < matrix.length; i++) {
     for (let j = 0; j < matrix[i].length; j++) {
-      if (matrix[i][j] === 1 && board[y + i][x + j] === 1) {
+      if (matrix[i][j].value === 1 && board[y + i][x + j].value === 1) {
         return false;
       }
     }
@@ -57,8 +46,11 @@ export function placeBlock(
 
   for (let i = 0; i < matrix.length; i++) {
     for (let j = 0; j < matrix[i].length; j++) {
-      if (matrix[i][j] === 1) {
-        newBoard[y + i][x + j] = 1;
+      if (matrix[i][j].value === 1) {
+        newBoard[y + i][x + j] = {
+          value: 1,
+          color: block.color
+        };
       }
     }
   }
@@ -75,7 +67,7 @@ function findCellsToClear(board: Matrix): boolean[][] {
 
   // Проверяем строки
   for (let y = 0; y < height; y++) {
-    if (board[y].every((cell) => cell === 1)) {
+    if (board[y].every((cell) => cell.value === 1)) {
       // Помечаем все клетки в строке для очистки
       for (let x = 0; x < width; x++) {
         cellsToClear[y][x] = true;
@@ -85,7 +77,7 @@ function findCellsToClear(board: Matrix): boolean[][] {
 
   // Проверяем столбцы
   for (let x = 0; x < width; x++) {
-    if (board.every((row) => row[x] === 1)) {
+    if (board.every((row) => row[x].value === 1)) {
       // Помечаем все клетки в столбце для очистки
       for (let y = 0; y < height; y++) {
         cellsToClear[y][x] = true;
@@ -111,7 +103,7 @@ export function clearLines(board: Matrix): {
 
   // Создаем новую доску, очищая помеченные клетки
   const newBoard = board.map((row, y) =>
-    row.map((cell, x) => (cellsToClear[y][x] ? 0 : cell))
+    row.map((cell, x) => (cellsToClear[y][x] ? { value: 0 } : cell))
   );
 
   // Подсчитываем количество очищенных линий
@@ -138,7 +130,7 @@ export function getCellsToClear(
 
 export function isGameOver(board: Matrix): boolean {
   // Проверяем, есть ли заполненные клетки в верхней строке
-  return board[0].some((cell) => cell === 1);
+  return board[0].some((cell) => cell.value === 1);
 }
 
 interface BlockPlacement {

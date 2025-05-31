@@ -25,29 +25,74 @@ export function calculateValidPositions(
 
 export function findNearestValidPosition(
     validPositions: Position[],
-    currentPosition: Position
+    target: Position
 ): Position | null {
     if (validPositions.length === 0) return null;
 
-    const nearest =  validPositions.reduce((nearest, current) => {
-        const currentDistance = Math.sqrt(
-            Math.pow(current.x - currentPosition.x, 2) + 
-            Math.pow(current.y - currentPosition.y, 2)
+    let nearest = validPositions[0];
+    let minDistance = Number.MAX_VALUE;
+
+    for (const pos of validPositions) {
+        const distance = Math.sqrt(
+            Math.pow(pos.x - target.x, 2) + Math.pow(pos.y - target.y, 2)
         );
-        const nearestDistance = Math.sqrt(
-            Math.pow(nearest.x - currentPosition.x, 2) + 
-            Math.pow(nearest.y - currentPosition.y, 2)
-        );
+        if (distance < minDistance) {
+            minDistance = distance;
+            nearest = pos;
+        }
+    }
 
-        return currentDistance < nearestDistance ? current : nearest;
-    });
+    return nearest;
+}
 
-    const distance = Math.sqrt(
-      Math.pow(nearest.x - currentPosition.x, 2) +
-      Math.pow(nearest.y - currentPosition.y, 2) 
-    )
+export function findAllValidPositions(board: Matrix, block: Block): Position[] {
+    // Проверяем, что матрица блока существует и имеет правильную форму
+    if (!block.matrix || !block.matrix.length || !block.matrix[0] || !block.matrix[0].length) {
+        console.warn('Invalid block matrix:', block);
+        return [];
+    }
 
-    return distance <= DISTANCE_THRESHOLD ? nearest : null
+    const validPositions: Position[] = [];
+    const [rows, cols] = [board.length, board[0].length];
+    const [blockRows, blockCols] = [block.matrix.length, block.matrix[0].length];
+
+    for (let y = 0; y <= rows - blockRows; y++) {
+        for (let x = 0; x <= cols - blockCols; x++) {
+            if (isValidPlacement(board, block, { x, y })) {
+                validPositions.push({ x, y });
+            }
+        }
+    }
+
+    return validPositions;
+}
+
+function isValidPlacement(board: Matrix, block: Block, position: Position): boolean {
+    // Проверяем, что матрица блока существует и имеет правильную форму
+    if (!block.matrix || !block.matrix.length || !block.matrix[0] || !block.matrix[0].length) {
+        return false;
+    }
+
+    const { x, y } = position;
+    const [blockRows, blockCols] = [block.matrix.length, block.matrix[0].length];
+
+    // Проверяем каждую клетку блока
+    for (let i = 0; i < blockRows; i++) {
+        for (let j = 0; j < blockCols; j++) {
+            if (block.matrix[i][j] === 1) {
+                // Проверяем, что клетка не выходит за пределы доски
+                if (y + i >= board.length || x + j >= board[0].length) {
+                    return false;
+                }
+                // Проверяем, что клетка не занята
+                if (board[y + i][x + j] === 1) {
+                    return false;
+                }
+            }
+        }
+    }
+
+    return true;
 }
 
 export function findAllValidPositions(board: Matrix, block: Block): Position[] {
