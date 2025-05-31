@@ -233,6 +233,54 @@ export const GameBoard: React.FC<GameBoardProps> = ({
     };
   }, [draggedPiece, updateDrag, endDrag, setHoverCell, board, calculateGridPosition, hoverCell]);
 
+  const calculatePotentialClearLines = useCallback((piece: Block, position: Position) => {
+    if (!position) return [];
+
+    // Создаем временную копию доски
+    const tempBoard = board.map(row => [...row]);
+    
+    // Размещаем фигуру на временной доске
+    piece.matrix.forEach((row, y) => {
+      row.forEach((cell, x) => {
+        if (cell.value === 1) {
+          const boardY = position.y + y;
+          const boardX = position.x + x;
+          if (boardY >= 0 && boardY < height && boardX >= 0 && boardX < width) {
+            tempBoard[boardY][boardX] = { value: 1, color: piece.color };
+          }
+        }
+      });
+    });
+
+    // Проверяем горизонтальные линии (строки)
+    const horizontalLines = tempBoard.map((row, y) => {
+      return row.every(cell => cell.value === 1);
+    });
+
+    // Проверяем вертикальные линии (столбцы)
+    const verticalLines = Array(width).fill(false).map((_, x) => {
+      return tempBoard.every(row => row[x].value === 1);
+    });
+
+    // Создаем матрицу подсветки, где true означает, что ячейка входит в линию, которая будет очищена
+    const highlightMatrix = tempBoard.map((row, y) => {
+      return row.map((_, x) => {
+        return horizontalLines[y] || verticalLines[x];
+      });
+    });
+
+    return highlightMatrix;
+  }, [board, width, height]);
+
+  useEffect(() => {
+    if (draggedPiece && hoverCell) {
+      const potentialLines = calculatePotentialClearLines(draggedPiece, hoverCell);
+      setPotentialClearHighlight(potentialLines);
+    } else {
+      setPotentialClearHighlight([]);
+    }
+  }, [draggedPiece, hoverCell, calculatePotentialClearLines]);
+
   return (
     <div className="flex flex-col items-center gap-8 min-h-screen bg-blue-900 p-4">
       {/* Top section: Score and Settings (placeholder) */}
@@ -316,14 +364,14 @@ export const GameBoard: React.FC<GameBoardProps> = ({
       </div>
 
       {/* Draggable Pieces */}
-      <div className="flex justify-center gap-4 mt-4">
+      <div className="flex justify-center gap-4 mt-4 relative">
         {currentPieces.map((piece) => {
           const isBeingDragged = draggedPiece?.uniqueId === piece.uniqueId;
 
           return (
             <div
               key={piece.uniqueId}
-              className={`flex items-center justify-center ${isBeingDragged ? 'fixed z-[1000] pointer-events-none opacity-70 transition-transform duration-200' : ''}`}
+              className={`flex items-center justify-center ${isBeingDragged ? 'fixed z-[1000] pointer-events-none opacity-70 transition-transform duration-200' : 'relative'}`}
               style={
                 isBeingDragged && dragPosition
                   ? {
@@ -340,7 +388,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                 <DraggablePiece
                   piece={piece}
                   onStart={handlePieceStart}
-                  cellSize={32}
+                  cellSize={16}
                   style={{}}
                   isGhost={isBeingDragged}
                 />

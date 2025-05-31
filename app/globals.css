@@ -140,6 +140,19 @@ body {
 
 /* Add styles for the potential clear highlight */
 .potential-clear-highlight {
-  background-color: rgba(55, 65, 81, 0.6); /* Tailwind gray-700 with 60% opacity */
+  animation: potential-clear-pulse 1s infinite;
+  background-color: rgba(59, 130, 246, 0.5) !important; /* blue-500 with opacity */
+}
+
+@keyframes potential-clear-pulse {
+  0% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 0.8;
+  }
+  100% {
+    opacity: 0.5;
+  }
 }
 
