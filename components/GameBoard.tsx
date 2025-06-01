@@ -12,6 +12,9 @@ import { GameOver } from "./GameOver";
 import { ScoreCalculator } from "../lib/core/scoreCalculator";
 import { Piece } from "./pieces/Piece";
 
+const CELL_SIZE = 43.75
+const VERTICAL_OFFSET = 2.5
+
 interface GameBoardProps {
   width?: number;
   height?: number;
@@ -22,48 +25,44 @@ interface GameBoardProps {
 const useGridPosition = (cellSize: number) => {
   const { validPositions } = useGameStore();
   const boardRef = useRef<HTMLDivElement>(null);
+  const [boardRect, setBoardRect] = useState<DOMRect | null>(null);
 
-  const calculateGridPosition = (e: MouseEvent | TouchEvent) => {
-    if (!boardRef.current) return null;
+  useEffect(() => {
+    if (boardRef.current) {
+      setBoardRect(boardRef.current.getBoundingClientRect());
+    }
+  }, []);
+
+  const calculateGridPosition = useCallback((e: MouseEvent | TouchEvent) => {
+    const rect = boardRect;
+
+    if (!rect) {
+      console.warn("boardRect not available in calculateGridPosition");
+      return null;
+    }
+
     const { clientX, clientY } = getEventCoordinates(e);
-    const rect = boardRef.current.getBoundingClientRect();
-
-    // Получаем перетаскиваемую фигуру из стора, так как useGridPosition не зависит от нее напрямую
+    
     const { draggedPiece } = useGameStore.getState();
-
     if (!draggedPiece) return null;
 
-    // Базовое смещение для призрака (можно уточнить)
-    const ghostX = clientX - cellSize * 1.5;
-    const ghostY = clientY - cellSize * 4.5;
-
-    const baseX = Math.floor((ghostX - rect.left) / cellSize);
-    const baseY = Math.floor((ghostY - rect.top) / cellSize);
-
-    // Вычисляем размеры фигуры в ячейках
     const pieceWidthCells = draggedPiece.matrix[0].length;
     const pieceHeightCells = draggedPiece.matrix.length;
 
-    console.log("calculateGridPosition debug:", {
-        clientX, clientY, rectTop: rect.top, rectLeft: rect.left,
-        ghostX, ghostY, baseX, baseY,
-        pieceWidthCells, pieceHeightCells
-    });
+    const offsetX = (pieceWidthCells * cellSize) / 2;
+    const offsetY = (pieceHeightCells * cellSize) * VERTICAL_OFFSET;
 
-    // Проверяем, находится ли фигура полностью в пределах доски
-    if (
-        baseX < 0 ||
-        baseY < 0 ||
-        baseX + pieceWidthCells > 8 || // Ширина доски 8 ячеек
-        baseY + pieceHeightCells > 8 // Высота доски 8 ячеек
-    ) {
-        console.log("calculateGridPosition: Figure out of bounds, returning null");
-        return null;
-    }
+    const relativeX = clientX - rect.left;
+    const relativeY = clientY - rect.top;
 
-    console.log("calculateGridPosition: Figure within bounds");
+    const ghostX = relativeX - offsetX;
+    const ghostY = relativeY - offsetY;
+
+    const baseX = Math.floor(ghostX / cellSize);
+    const baseY = Math.floor(ghostY / cellSize);
+
     return findNearestValidPosition(validPositions, { x: baseX, y: baseY });
-  };
+  }, [validPositions, boardRect, cellSize]);
 
   return { boardRef, calculateGridPosition };
 };
@@ -95,7 +94,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
     resetGame,
   } = useGameStore();
 
-  const { boardRef, calculateGridPosition } = useGridPosition(32);
+  const { boardRef, calculateGridPosition } = useGridPosition(CELL_SIZE);
 
   const [clearingCells, setClearingCells] = useState<boolean[][]>([]);
   const [isAnimating, setIsAnimating] = useState(false);
@@ -123,6 +122,9 @@ export const GameBoard: React.FC<GameBoardProps> = ({
   const blockGenerator = new BlockGenerator();
   const scoreCalculator = new ScoreCalculator();
   const difficultyEvaluator = new DifficultyEvaluator();
+useEffect(() => {
+
+})
 
   useEffect(() => {
     if (isAnimating) {
@@ -157,10 +159,12 @@ export const GameBoard: React.FC<GameBoardProps> = ({
     setPlacedPiecesCount(0); // Reset placed pieces count when generating new blocks
   }, [board, blockGenerator, setCurrentPieces, setPreviewBlock]);
 
-  const handlePieceStart = (piece: Block, x: number, y: number) => {
-    startDrag(piece);
-    updateDrag({ x, y });
-  };
+  const handlePieceStart = useCallback((piece: Block, x: number, y: number) => {
+    if (boardRef.current) {
+      startDrag(piece);
+      updateDrag({ x, y });
+    }
+  }, [startDrag, updateDrag, boardRef]);
 
   const handlePiecePlacement = (x: number, y: number) => {
     if (draggedPiece && hoverCell) {
@@ -369,31 +373,21 @@ export const GameBoard: React.FC<GameBoardProps> = ({
           const isBeingDragged = draggedPiece?.uniqueId === piece.uniqueId;
 
           return (
-            <div
-              key={piece.uniqueId}
-              className={`flex items-center justify-center ${isBeingDragged ? 'fixed z-[1000] pointer-events-none opacity-70 transition-transform duration-200' : 'relative'}`}
-              style={
-                isBeingDragged && dragPosition
-                  ? {
-                      left: dragPosition.x - 32,
-                      top: dragPosition.y - 32 * 2,
-                    }
-                  : {
-                      width: '96px',
-                      height: '96px',
+            <DraggablePiece
+            key={piece.uniqueId}
+            piece={piece}
+            onStart={handlePieceStart}
+            style={
+              isBeingDragged && dragPosition
+                ? {
+                    left: dragPosition.x - (piece.matrix[0].length * CELL_SIZE) / 2,
+                    top: dragPosition.y - (piece.matrix.length * CELL_SIZE ) * VERTICAL_OFFSET,
                   }
-              }
-            >
-              {piece && (
-                <DraggablePiece
-                  piece={piece}
-                  onStart={handlePieceStart}
-                  cellSize={16}
-                  style={{}}
-                  isGhost={isBeingDragged}
-                />
-              )}
-            </div>
+                : {}
+            }
+            isGhost={isBeingDragged}
+            ghostSize={CELL_SIZE}
+          />
           );
         })}
       </div>

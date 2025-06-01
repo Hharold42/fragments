@@ -5,8 +5,8 @@ import { Piece } from "./pieces/Piece";
 
 interface DraggablePieceProps {
   piece: Block;
-  cellSize?: number;
-  ghostScale?: number;
+  originalSize?: number;
+  ghostSize?: number;
   isGhost?: boolean;
   isDragged?: boolean;
   onStart?: (piece: Block, x: number, y: number) => void;
@@ -18,7 +18,8 @@ export const DraggablePiece: React.FC<DraggablePieceProps> = ({
   isGhost = false,
   onStart,
   style,
-  cellSize = 32,
+  originalSize = 32,
+  ghostSize = 44
 }) => {
   if (!piece || !piece.matrix) {
     return null;
@@ -51,14 +52,14 @@ export const DraggablePiece: React.FC<DraggablePieceProps> = ({
                 <Piece 
                   key={`${x}-${y}`} 
                   color={piece.color} 
-                  size={isGhost ? 32 : cellSize} 
+                  size={isGhost ? ghostSize : originalSize} 
                 />
               ) : (
                 <div 
                   key={`${x}-${y}`} 
                   style={{ 
-                    width: isGhost ? 32 : cellSize, 
-                    height: isGhost ? 32 : cellSize 
+                    width: isGhost ? ghostSize : originalSize, 
+                    height: isGhost ? ghostSize : originalSize 
                   }} 
                 />
               )
