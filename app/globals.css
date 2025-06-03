@@ -1,7 +1,6 @@
 @import "tailwindcss";
 
-
-@font-face {
+/* @font-face {
   font-family: "figtree";
   src: url("/fonts/fig.ttf") format("truetype");
   font-weight: 400;
@@ -14,7 +13,7 @@
   font-weight: 700;
   font-style: normal;
   font-display: swap;
-}
+} */
 
 @layer base {
   html {
@@ -34,7 +33,7 @@
 }
 
 @theme {
-  --font-fig: "figtree"
+  --font-fig: "figtree";
 }
 
 @theme inline {
@@ -61,12 +60,21 @@ body {
   animation: tilt-n-move-shaking 0.35s infinite;
 }
 @keyframes tilt-n-move-shaking {
-
-  0% { transform: translateX(0) }
-  25% { transform: translateX(2px) }
-  50% { transform: translateX(-2px) }
-  75% { transform: translateX(2px) }
-  100% { transform: translateX(0) }
+  0% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(2px);
+  }
+  50% {
+    transform: translateX(-2px);
+  }
+  75% {
+    transform: translateX(2px);
+  }
+  100% {
+    transform: translateX(0);
+  }
 }
 
 @keyframes fadeIn {
@@ -121,9 +129,16 @@ body {
 }
 
 @keyframes shake {
-  0%, 100% { transform: translateX(0); }
-  25% { transform: translateX(-2px); }
-  75% { transform: translateX(2px); }
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-2px);
+  }
+  75% {
+    transform: translateX(2px);
+  }
 }
 
 .clearing {
@@ -141,7 +156,12 @@ body {
 /* Add styles for the potential clear highlight */
 .potential-clear-highlight {
   animation: potential-clear-pulse 1s infinite;
-  background-color: rgba(59, 130, 246, 0.5) !important; /* blue-500 with opacity */
+  background-color: rgba(
+    59,
+    130,
+    246,
+    0.5
+  ) !important; /* blue-500 with opacity */
 }
 
 @keyframes potential-clear-pulse {
@@ -155,4 +175,68 @@ body {
     opacity: 0.5;
   }
 }
+
+.menu-shadow {
+  filter: drop-shadow(2px 2px 2px rgba(0, 0, 0, 0.4));
+}
+
+.orange-gradient {
+  background-image: linear-gradient(to right, #f9b233, #f76d1f);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.5);
+}
+
+.green-gradient {
+  background: linear-gradient(120deg, #b6fdc3 0%, #52db6b 20%, #40ae54 100%);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.5);
+}
+
+.red-gradient {
+  background: linear-gradient(120deg, #f9c2b9 0%, #fe705a 30%, #bc4a38 100%);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.5);
+}
+
+.notif-gradient {
+  background: linear-gradient(45deg, #fc3b2d 0%, #f3654f 100%);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.5);
+}
+
+@theme {
+  --font-sans: var(--font-figtree);
+}
+
+.menu-bg {
+  background: linear-gradient(to bottom, #0070ac 0%, #003c85 100%);
+}
+
+.menu-button {
+  filter: drop-shadow(2px 2px 2px rgba(0, 0, 0, 0.4));
+  @apply relative min-w-fit px-3 py-2 flex items-center gap-2 min-h-[7vh];
+}
+
+@keyframes fall {
+  0% {
+    top: -10%;
+    opacity: 1;
+  }
+  70% {
+    opacity: 0.7;
+  }
+  100% {
+    top: 80%;
+    opacity: 0;
+  }
+}
+
+.falling-element {
+  position: absolute;
+  animation: fall linear infinite;
+  animation-duration: var(--animation-duration);
+  animation-delay: var(--animation-delay);
+}
+
+.falling-square {
+  background: #ffffff0f;
+  @apply rounded;
+}
+
 
