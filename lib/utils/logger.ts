@@ -1,3 +1,5 @@
+import { Block, Cell } from '../data/types';
+
 class GameLogger {
     private static instance: GameLogger;
     private readonly LOG_KEY = 'game_logs';
@@ -25,7 +27,7 @@ class GameLogger {
         try {
             const timestamp = new Date().toISOString();
             const logEntry = `[${timestamp}] Generated blocks:\n${blocks.map(block => 
-                `  - ${block.name} (${block.difficulty}):\n    ${block.matrix.map(row => row.join(' ')).join('\n    ')}`
+                `  - ${block.name} (${block.difficulty}):\n    ${block.matrix.map((row: Cell[]) => row.join(' ')).join('\n    ')}`
             ).join('\n')}\n\n`;
             
             const currentLogs = localStorage.getItem(this.LOG_KEY) || '';

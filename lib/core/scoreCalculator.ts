@@ -70,6 +70,6 @@ export class ScoreCalculator {
     }
 
     private isBoardCleared(board: Matrix): boolean {
-        return board.every(row => row.every(cell => cell === 1));
+        return board.every(row => row.every(cell => cell.value === 1));
     }
 } 

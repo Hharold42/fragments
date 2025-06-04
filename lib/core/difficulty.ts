@@ -62,7 +62,7 @@ export class DifficultyEvaluator {
         }
 
         const totalCells = block.matrix.reduce(
-            (sum, row) => sum + row.reduce((rowSum, cell) => rowSum + cell, 0),
+            (sum, row) => sum + row.reduce((rowSum, cell) => rowSum + cell.value, 0),
             0
         );
         // Нормализуем размер от 0 до 1 (максимум 5 клеток)
@@ -105,7 +105,7 @@ export class DifficultyEvaluator {
 
         // Проверяем потенциал очистки строк
         for (let y = 0; y < rows; y++) {
-            const rowCells = board[y].filter(cell => cell === 1).length;
+            const rowCells = board[y].filter(cell => cell.value === 1).length;
             if (rowCells + block.matrix[0].length === cols) {
                 potential += 0.5;
             }
@@ -113,7 +113,7 @@ export class DifficultyEvaluator {
 
         // Проверяем потенциал очистки столбцов
         for (let x = 0; x < cols; x++) {
-            const colCells = board.filter(row => row[x] === 1).length;
+            const colCells = board.filter(row => row[x].value === 1).length;
             if (colCells + block.matrix.length === rows) {
                 potential += 0.5;
             }
@@ -161,8 +161,8 @@ export class DifficultyEvaluator {
 
             // Проверяем потенциал очистки строк
             for (let i = 0; i < matrix.length; i++) {
-                const rowCells = board[y + i].filter(cell => cell === 1).length;
-                const blockCells = matrix[i].filter(cell => cell === 1).length;
+                const rowCells = board[y + i].filter(cell => cell.value === 1).length;
+                const blockCells = matrix[i].filter(cell => cell.value === 1).length;
                 if (rowCells + blockCells === board[0].length) {
                     comboPotential += 0.5;
                 }
@@ -170,8 +170,8 @@ export class DifficultyEvaluator {
 
             // Проверяем потенциал очистки столбцов
             for (let j = 0; j < matrix[0].length; j++) {
-                const colCells = board.filter(row => row[x + j] === 1).length;
-                const blockCells = matrix.filter(row => row[j] === 1).length;
+                const colCells = board.filter(row => row[x + j].value === 1).length;
+                const blockCells = matrix.filter(row => row[j].value === 1).length;
                 if (colCells + blockCells === board.length) {
                     comboPotential += 0.5;
                 }
