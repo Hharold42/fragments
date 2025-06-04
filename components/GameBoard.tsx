@@ -1,4 +1,6 @@
-import React, { useEffect, useRef, useState, useCallback } from "react";
+"use client";
+
+import React, { useEffect, useRef, useState, useCallback, use } from "react";
 import { useGameStore } from "../lib/state/store";
 import { getCellsToClear } from "@/lib/core/engine";
 import { findNearestValidPosition } from "../lib/core/positions";
@@ -12,66 +14,155 @@ import { GameOver } from "./GameOver";
 import { ScoreCalculator } from "../lib/core/scoreCalculator";
 import { Piece } from "./pieces/Piece";
 
-const CELL_SIZE = 43.75
-const VERTICAL_OFFSET = 2.5
+const DEFAULT_CELL_SIZE = 43.75;
 
 interface GameBoardProps {
   width?: number;
   height?: number;
-  onScoreUpdate: (score: number) => void;
-  onGameOver: () => void;
+  // onScoreUpdate: (score: number) => void;
+  // onGameOver: () => void;
+  onExitGame: () => void;
 }
 
-const useGridPosition = (cellSize: number) => {
-  const { validPositions } = useGameStore();
+// Динамически определяет размер клетки для корректной работы DnD
+const useBoardAndCellSizes = () => {
   const boardRef = useRef<HTMLDivElement>(null);
+  const cellRef = useRef<HTMLDivElement>(null);
+
   const [boardRect, setBoardRect] = useState<DOMRect | null>(null);
+  const [dynamicCellSize, setDynamicCellSize] = useState(DEFAULT_CELL_SIZE);
 
   useEffect(() => {
+    const updateSizes = () => {
+      if (boardRef.current) {
+        setBoardRect(boardRef.current.getBoundingClientRect());
+      }
+      if (cellRef.current) {
+        setDynamicCellSize(cellRef.current.getBoundingClientRect().width);
+        console.log(
+          "Updated dynamicCellSize:",
+          cellRef.current.getBoundingClientRect().width
+        );
+      }
+    };
+
+    // Update sizes initially
+    updateSizes();
+
+    // Add resize observer to boardRef for more accurate updates
+    const resizeObserver = new ResizeObserver((entries) => {
+      // Only update if boardRef is among the observed entries
+      if (entries.some((entry) => entry.target === boardRef.current)) {
+        updateSizes();
+      }
+    });
+
     if (boardRef.current) {
-      setBoardRect(boardRef.current.getBoundingClientRect());
-    }
-  }, []);
-
-  const calculateGridPosition = useCallback((e: MouseEvent | TouchEvent) => {
-    const rect = boardRect;
-
-    if (!rect) {
-      console.warn("boardRect not available in calculateGridPosition");
-      return null;
+      resizeObserver.observe(boardRef.current);
     }
 
-    const { clientX, clientY } = getEventCoordinates(e);
-    
-    const { draggedPiece } = useGameStore.getState();
-    if (!draggedPiece) return null;
+    // Also listen to window resize as a fallback/additional measure
+    window.addEventListener("resize", updateSizes);
 
-    const pieceWidthCells = draggedPiece.matrix[0].length;
-    const pieceHeightCells = draggedPiece.matrix.length;
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener("resize", updateSizes);
+    };
+  }, [boardRef, cellRef]);
 
-    const offsetX = (pieceWidthCells * cellSize) / 2;
-    const offsetY = (pieceHeightCells * cellSize) * VERTICAL_OFFSET;
+  return { boardRef, cellRef, boardRect, dynamicCellSize };
+};
 
-    const relativeX = clientX - rect.left;
-    const relativeY = clientY - rect.top;
+const useGridPosition = () => {
+  const { validPositions } = useGameStore();
 
-    const ghostX = relativeX - offsetX;
-    const ghostY = relativeY - offsetY;
+  const { boardRef, cellRef, boardRect, dynamicCellSize } =
+    useBoardAndCellSizes();
 
-    const baseX = Math.floor(ghostX / cellSize);
-    const baseY = Math.floor(ghostY / cellSize);
+  // Для удобного "ускорения" движения призрака фигуры
+  const calculateDynamicOffset = useCallback(
+    (cursorX: number, cursorY: number) => {
+      const referenceHeight = window.innerHeight;
+      const referenceWidth = window.innerWidth;
+      const referenceCenter = referenceWidth / 2;
+      const minOffsetY = 1.5;
+      const maxOffsetY = 3.5;
+      const maxOffsetX = 2.0;
 
-    return findNearestValidPosition(validPositions, { x: baseX, y: baseY });
-  }, [validPositions, boardRect, cellSize]);
+      const normalizedCursorY = Math.max(
+        0,
+        Math.min(1, cursorY / referenceHeight)
+      );
+      const normalizedCursorX = (cursorX - referenceCenter) / referenceCenter;
 
-  return { boardRef, calculateGridPosition };
+      const dynamicOffsetY =
+        minOffsetY + (1 - normalizedCursorY) * (maxOffsetY - minOffsetY);
+
+      const dynamicOffsetX = 1 - normalizedCursorX * maxOffsetX;
+
+      return [dynamicOffsetX, dynamicOffsetY];
+    },
+    []
+  );
+
+  const calculateGridPosition = useCallback(
+    (e: MouseEvent | TouchEvent, currentDragPosition: Position | null) => {
+      const rect = boardRect;
+
+      if (!rect || !currentDragPosition) {
+        console.warn(
+          "boardRect or dragPosition not available in calculateGridPosition"
+        );
+        return null;
+      }
+
+      const { clientX, clientY } = getEventCoordinates(e);
+
+      const { draggedPiece } = useGameStore.getState();
+      if (!draggedPiece) return null;
+
+      const [dynamicOffsetX, dynamicOffsetY] = calculateDynamicOffset(
+        currentDragPosition.x,
+        currentDragPosition.y
+      );
+
+      const pieceWidthCells = draggedPiece.matrix[0].length;
+      const pieceHeightCells = draggedPiece.matrix.length;
+
+      const offsetYMultiplier = pieceHeightCells < 2 ? 2 : 1;
+
+      const offsetX =
+        ((pieceWidthCells * dynamicCellSize) / 2) * dynamicOffsetX;
+      const offsetY =
+        pieceHeightCells * dynamicCellSize * dynamicOffsetY * offsetYMultiplier;
+
+      const relativeX = clientX - rect.left;
+      const relativeY = clientY - rect.top;
+
+      const baseX = Math.floor((relativeX - offsetX) / dynamicCellSize);
+      const baseY = Math.floor((relativeY - offsetY) / dynamicCellSize);
+
+      return findNearestValidPosition(validPositions, { x: baseX, y: baseY });
+    },
+    [validPositions, boardRect, dynamicCellSize, calculateDynamicOffset]
+  );
+
+  return {
+    boardRef,
+    calculateGridPosition,
+    dynamicCellSize,
+    cellRef,
+    boardRect,
+    calculateDynamicOffset,
+  };
 };
 
 export const GameBoard: React.FC<GameBoardProps> = ({
   width = 8,
   height = 8,
-  onScoreUpdate,
-  onGameOver,
+  // onScoreUpdate,
+  // onGameOver,
+  onExitGame,
 }) => {
   const {
     board,
@@ -94,7 +185,14 @@ export const GameBoard: React.FC<GameBoardProps> = ({
     resetGame,
   } = useGameStore();
 
-  const { boardRef, calculateGridPosition } = useGridPosition(CELL_SIZE);
+  const {
+    boardRef,
+    cellRef,
+    calculateGridPosition,
+    dynamicCellSize,
+    boardRect,
+    calculateDynamicOffset,
+  } = useGridPosition();
 
   const [clearingCells, setClearingCells] = useState<boolean[][]>([]);
   const [isAnimating, setIsAnimating] = useState(false);
@@ -122,9 +220,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
   const blockGenerator = new BlockGenerator();
   const scoreCalculator = new ScoreCalculator();
   const difficultyEvaluator = new DifficultyEvaluator();
-useEffect(() => {
-
-})
+  useEffect(() => {});
 
   useEffect(() => {
     if (isAnimating) {
@@ -159,12 +255,15 @@ useEffect(() => {
     setPlacedPiecesCount(0); // Reset placed pieces count when generating new blocks
   }, [board, blockGenerator, setCurrentPieces, setPreviewBlock]);
 
-  const handlePieceStart = useCallback((piece: Block, x: number, y: number) => {
-    if (boardRef.current) {
-      startDrag(piece);
-      updateDrag({ x, y });
-    }
-  }, [startDrag, updateDrag, boardRef]);
+  const handlePieceStart = useCallback(
+    (piece: Block, x: number, y: number) => {
+      if (boardRef.current) {
+        startDrag(piece);
+        updateDrag({ x, y });
+      }
+    },
+    [startDrag, updateDrag, boardRef]
+  );
 
   const handlePiecePlacement = (x: number, y: number) => {
     if (draggedPiece && hoverCell) {
@@ -196,14 +295,15 @@ useEffect(() => {
       }
 
       const { clientX, clientY } = getEventCoordinates(e);
-      updateDrag({ x: clientX, y: clientY });
+      const currentDragPosition = { x: clientX, y: clientY };
+      updateDrag(currentDragPosition);
 
-      const nearestPosition = calculateGridPosition(e);
+      const nearestPosition = calculateGridPosition(e, currentDragPosition);
       setHoverCell(nearestPosition);
     };
 
     const handleStart = (e: TouchEvent) => {
-      e.preventDefault();
+      // e.preventDefault();
     };
 
     const handleEnd = (e: MouseEvent | TouchEvent) => {
@@ -235,50 +335,71 @@ useEffect(() => {
       window.removeEventListener("touchend", handleEnd);
       window.removeEventListener("touchcancel", handleEnd);
     };
-  }, [draggedPiece, updateDrag, endDrag, setHoverCell, board, calculateGridPosition, hoverCell]);
+  }, [
+    draggedPiece,
+    updateDrag,
+    endDrag,
+    setHoverCell,
+    board,
+    calculateGridPosition,
+    hoverCell,
+  ]);
 
-  const calculatePotentialClearLines = useCallback((piece: Block, position: Position) => {
-    if (!position) return [];
+  const calculatePotentialClearLines = useCallback(
+    (piece: Block, position: Position) => {
+      if (!position) return [];
 
-    // Создаем временную копию доски
-    const tempBoard = board.map(row => [...row]);
-    
-    // Размещаем фигуру на временной доске
-    piece.matrix.forEach((row, y) => {
-      row.forEach((cell, x) => {
-        if (cell.value === 1) {
-          const boardY = position.y + y;
-          const boardX = position.x + x;
-          if (boardY >= 0 && boardY < height && boardX >= 0 && boardX < width) {
-            tempBoard[boardY][boardX] = { value: 1, color: piece.color };
+      // Создаем временную копию доски
+      const tempBoard = board.map((row) => [...row]);
+
+      // Размещаем фигуру на временной доске
+      piece.matrix.forEach((row, y) => {
+        row.forEach((cell, x) => {
+          if (cell.value === 1) {
+            const boardY = position.y + y;
+            const boardX = position.x + x;
+            if (
+              boardY >= 0 &&
+              boardY < height &&
+              boardX >= 0 &&
+              boardX < width
+            ) {
+              tempBoard[boardY][boardX] = { value: 1, color: piece.color };
+            }
           }
-        }
+        });
       });
-    });
 
-    // Проверяем горизонтальные линии (строки)
-    const horizontalLines = tempBoard.map((row, y) => {
-      return row.every(cell => cell.value === 1);
-    });
-
-    // Проверяем вертикальные линии (столбцы)
-    const verticalLines = Array(width).fill(false).map((_, x) => {
-      return tempBoard.every(row => row[x].value === 1);
-    });
-
-    // Создаем матрицу подсветки, где true означает, что ячейка входит в линию, которая будет очищена
-    const highlightMatrix = tempBoard.map((row, y) => {
-      return row.map((_, x) => {
-        return horizontalLines[y] || verticalLines[x];
+      // Проверяем горизонтальные линии (строки)
+      const horizontalLines = tempBoard.map((row, y) => {
+        return row.every((cell) => cell.value === 1);
       });
-    });
 
-    return highlightMatrix;
-  }, [board, width, height]);
+      // Проверяем вертикальные линии (столбцы)
+      const verticalLines = Array(width)
+        .fill(false)
+        .map((_, x) => {
+          return tempBoard.every((row) => row[x].value === 1);
+        });
+
+      // Создаем матрицу подсветки, где true означает, что ячейка входит в линию, которая будет очищена
+      const highlightMatrix = tempBoard.map((row, y) => {
+        return row.map((_, x) => {
+          return horizontalLines[y] || verticalLines[x];
+        });
+      });
+
+      return highlightMatrix;
+    },
+    [board, width, height]
+  );
 
   useEffect(() => {
     if (draggedPiece && hoverCell) {
-      const potentialLines = calculatePotentialClearLines(draggedPiece, hoverCell);
+      const potentialLines = calculatePotentialClearLines(
+        draggedPiece,
+        hoverCell
+      );
       setPotentialClearHighlight(potentialLines);
     } else {
       setPotentialClearHighlight([]);
@@ -286,14 +407,14 @@ useEffect(() => {
   }, [draggedPiece, hoverCell, calculatePotentialClearLines]);
 
   return (
-    <div className="flex flex-col items-center gap-8 min-h-screen bg-blue-900 p-4">
+    <div className="flex flex-col items-center gap-8 min-h-screen  bg-blue-900 p-4 no-select">
       {/* Top section: Score and Settings (placeholder) */}
       <div className="flex justify-between w-full items-center">
         <div className="text-2xl font-bold text-white">
           500 {/* Placeholder for trophy */}
         </div>
         <div className="text-4xl font-bold text-white">{score}</div>
-        <div className="text-2xl font-bold text-white">
+        <div className="text-2xl font-bold text-white" onClick={onExitGame}>
           ⚙️ {/* Placeholder for settings icon */}
         </div>
       </div>
@@ -307,7 +428,7 @@ useEffect(() => {
       </div> */}
 
       {/* Game Board Container - takes full width and maintains aspect ratio */}
-      <div className="w-full aspect-square flex justify-center items-center p-1">
+      <div className="w-full aspect-square flex justify-center items-center p-4 md:max-w-xs md:max-h-xs">
         <div
           ref={boardRef}
           className="grid grid-cols-8 grid-rows-8 gap-0.5 w-full h-full bg-gray-800 p-1 rounded-lg relative"
@@ -315,6 +436,7 @@ useEffect(() => {
           {board.map((row, y) => (
             <React.Fragment key={y}>
               {row.map((cell, x) => {
+                const isFirst = y === 0 && x === 0;
                 let highlight = false;
                 let willBeCleared = false;
                 let isClearing = false;
@@ -348,6 +470,7 @@ useEffect(() => {
                 return (
                   <div
                     key={x}
+                    ref={isFirst ? cellRef : null}
                     className={`rounded-[3px] ${
                       cell.value ? "bg-gray-700" : "bg-gray-900"
                     } ${highlight ? "ring-2 ring-blue-500" : ""} ${
@@ -372,22 +495,38 @@ useEffect(() => {
         {currentPieces.map((piece) => {
           const isBeingDragged = draggedPiece?.uniqueId === piece.uniqueId;
 
+          let itemStyle = {}; // Initialize an empty style object
+
+          if (isBeingDragged && dragPosition) {
+            const [dynamicGhostOffsetX, dynamicGhostOffsetY] =
+              calculateDynamicOffset(dragPosition.x, dragPosition.y);
+            // Calculate multiplier only when draggedPiece is guaranteed to exist
+            const offsetYMultiplier = draggedPiece.matrix.length < 2 ? 2 : 1;
+
+            itemStyle = {
+              left:
+                dragPosition.x -
+                ((piece.matrix[0].length * dynamicCellSize) / 2) *
+                  dynamicGhostOffsetX,
+              top:
+                dragPosition.y -
+                piece.matrix.length *
+                  dynamicCellSize *
+                  dynamicGhostOffsetY *
+                  offsetYMultiplier,
+            };
+          }
+
           return (
             <DraggablePiece
-            key={piece.uniqueId}
-            piece={piece}
-            onStart={handlePieceStart}
-            style={
-              isBeingDragged && dragPosition
-                ? {
-                    left: dragPosition.x - (piece.matrix[0].length * CELL_SIZE) / 2,
-                    top: dragPosition.y - (piece.matrix.length * CELL_SIZE ) * VERTICAL_OFFSET,
-                  }
-                : {}
-            }
-            isGhost={isBeingDragged}
-            ghostSize={CELL_SIZE}
-          />
+              key={piece.uniqueId}
+              piece={piece}
+              onStart={handlePieceStart}
+              style={itemStyle}
+              isGhost={isBeingDragged}
+              ghostSize={dynamicCellSize}
+              originalSize={dynamicCellSize * 0.8}
+            />
           );
         })}
       </div>

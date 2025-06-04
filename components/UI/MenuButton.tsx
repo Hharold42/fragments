@@ -71,7 +71,7 @@ const MenuButton: FC<MenuButtonProps> = ({
       {notificationCount !== undefined && notificationCount > 0 && (
         <span
           className="absolute -top-4 -right-4 notif-gradient text-white text-md w-8 h-8
-         flex items-center justify-center rounded-full font-figtree font-bold text-[1.5rem] sm:text-xs"
+         flex items-center justify-center rounded-full font-figtree font-bold text-[1.5rem]"
         >
           {notificationCount}
         </span>

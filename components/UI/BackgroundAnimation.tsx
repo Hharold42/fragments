@@ -1,21 +1,28 @@
-import React, { FC, useMemo } from "react";
+"use client";
+
+import React, { FC, useEffect, useMemo, useState } from "react";
 import star from "@/public/romn.svg";
 import Image from "next/image";
+import { createArray, getRandomItem } from "@/utils/helpers";
 
 interface BackgroundAnimationProps {
   className?: string;
 }
 
+const NUM_ELEMENTS = 20; // Количество анимированных элементов
+const SIZES = [20, 30, 40, 50, 60, 70];
+const START_LEFT = 3; // Начальная позиция слева
+const END_LEFT = 97; // Конечная позиция слева
+const STEP_LEFT = (END_LEFT - START_LEFT) / (NUM_ELEMENTS - 1);
+const leftOffsets = createArray(START_LEFT, END_LEFT + STEP_LEFT, STEP_LEFT); // Создаем массив отступов
 
-const NUM_ELEMENTS = 12; // Количество анимированных элементов
 const generateRandomElements = () => {
   const elements = [];
   for (let i = 0; i < NUM_ELEMENTS; i++) {
-    const size = Math.random() * 40 + 30;
+    const size = getRandomItem(SIZES);
     const duration = Math.random() * 10 + 8;
-    const delay = Math.random() * 10;
-    const initialLeft = Math.random() * 100; 
-
+    const delay = Math.random() * 5 + 1;
+    const initialLeft = leftOffsets[i];
 
     elements.push({
       id: i,
@@ -23,14 +30,17 @@ const generateRandomElements = () => {
       duration,
       delay,
       initialLeft,
-      // figType,
     });
   }
   return elements;
 };
 
 const BackgroundAnimation: FC<BackgroundAnimationProps> = ({ className }) => {
-  const animatedElements = useMemo(() => generateRandomElements(), []);
+  const [animatedElements, setAnimatedElements] = useState<any[]>([]); // Use useState to manage elements
+
+  useEffect(() => {
+    setAnimatedElements(generateRandomElements());
+  }, []);
 
   return (
     <div className={className}>
@@ -56,16 +66,15 @@ const BackgroundAnimation: FC<BackgroundAnimationProps> = ({ className }) => {
             src={star}
             alt="star"
             className="falling-element absolute"
-            
             style={
               {
-                width: `${element.size}px`,
-                height: `${element.size}px`,
+                width: `${element.size * 2}px`,
+                height: `${element.size * 2}px`,
                 left: `${element.initialLeft}%`,
                 "--animation-duration": `${element.duration}s`,
                 "--animation-delay": `${element.delay}s`,
               } as React.CSSProperties
-            } 
+            }
           />
         )
       )}

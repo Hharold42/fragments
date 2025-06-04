@@ -1,7 +1,7 @@
 import { Block, Matrix, Position } from "../data/types";
 import { canPlaceBlock } from "./engine";
 
-const DISTANCE_THRESHOLD = 1.5;
+const DISTANCE_THRESHOLD = 0.15;
 
 export function calculateValidPositions(
     board: Matrix,
