@@ -71,7 +71,7 @@ export class ScoreCalculator {
 
   private isFullFigureCleared(block: Block, cellsInLines: number): boolean {
     const totalCells = block.matrix.reduce(
-      (sum, row) => sum + row.reduce((rowSum, cell) => rowSum + cell, 0),
+      (sum, row) => sum + row.reduce((rowSum, cell) => rowSum + cell.value, 0),
       0
     );
     return cellsInLines === totalCells;
@@ -87,7 +87,7 @@ export class ScoreCalculator {
   }
 
   private isBoardCleared(board: Matrix): boolean {
-    return board.every(row => row.every(cell => cell === 0));
+    return board.every(row => row.every(cell => cell.value === 0));
   }
 
   calculateScore(

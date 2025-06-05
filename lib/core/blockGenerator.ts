@@ -5,9 +5,29 @@ import { BlockSetFinder } from "./blockSetFinder";
 
 // Все возможные варианты фигур
 const ALL_BLOCKS: Matrix[] = [
-    // I (палка) - 2 варианта
+    // Горизонтальные линии (2-5)
+    [
+        [{ value: 1 }, { value: 1 }]
+    ],
+    [
+        [{ value: 1 }, { value: 1 }, { value: 1 }]
+    ],
     [
         [{ value: 1 }, { value: 1 }, { value: 1 }, { value: 1 }]
+    ],
+    [
+        [{ value: 1 }, { value: 1 }, { value: 1 }, { value: 1 }, { value: 1 }]
+    ],
+
+    // Вертикальные линии (2-5)
+    [
+        [{ value: 1 }],
+        [{ value: 1 }]
+    ],
+    [
+        [{ value: 1 }],
+        [{ value: 1 }],
+        [{ value: 1 }]
     ],
     [
         [{ value: 1 }],
@@ -15,159 +35,154 @@ const ALL_BLOCKS: Matrix[] = [
         [{ value: 1 }],
         [{ value: 1 }]
     ],
+    [
+        [{ value: 1 }],
+        [{ value: 1 }],
+        [{ value: 1 }],
+        [{ value: 1 }],
+        [{ value: 1 }]
+    ],
 
-    // O (квадрат) - 1 вариант
+    // Квадраты (не требуют поворотов)
     [
         [{ value: 1 }, { value: 1 }],
         [{ value: 1 }, { value: 1 }]
     ],
-
-    // T - 4 варианта
-    [
-        [{ value: 1 }, { value: 1 }, { value: 1 }],
-        [{ value: 0 }, { value: 1 }, { value: 0 }]
-    ],
-    [
-        [{ value: 0 }, { value: 1 }, { value: 0 }],
-        [{ value: 1 }, { value: 1 }, { value: 1 }]
-    ],
-    [
-        [{ value: 1 }, { value: 0 }],
-        [{ value: 1 }, { value: 1 }],
-        [{ value: 1 }, { value: 0 }]
-    ],
-    [
-        [{ value: 0 }, { value: 1 }],
-        [{ value: 1 }, { value: 1 }],
-        [{ value: 0 }, { value: 1 }]
-    ],
-
-    // L - 4 варианта
-    [
-        [{ value: 1 }, { value: 0 }],
-        [{ value: 1 }, { value: 0 }],
-        [{ value: 1 }, { value: 1 }]
-    ],
-    [
-        [{ value: 0 }, { value: 1 }],
-        [{ value: 0 }, { value: 1 }],
-        [{ value: 1 }, { value: 1 }]
-    ],
-    [
-        [{ value: 1 }, { value: 1 }],
-        [{ value: 1 }, { value: 0 }],
-        [{ value: 1 }, { value: 0 }]
-    ],
-    [
-        [{ value: 1 }, { value: 1 }],
-        [{ value: 0 }, { value: 1 }],
-        [{ value: 0 }, { value: 1 }]
-    ],
-
-    // J - 4 варианта (зеркальные L)
-    [
-        [{ value: 0 }, { value: 1 }],
-        [{ value: 0 }, { value: 1 }],
-        [{ value: 1 }, { value: 1 }]
-    ],
-    [
-        [{ value: 1 }, { value: 0 }],
-        [{ value: 1 }, { value: 0 }],
-        [{ value: 1 }, { value: 1 }]
-    ],
-    [
-        [{ value: 1 }, { value: 1 }],
-        [{ value: 0 }, { value: 1 }],
-        [{ value: 0 }, { value: 1 }]
-    ],
-    [
-        [{ value: 1 }, { value: 1 }],
-        [{ value: 1 }, { value: 0 }],
-        [{ value: 1 }, { value: 0 }]
-    ],
-
-    // S - 4 варианта
-    [
-        [{ value: 0 }, { value: 1 }, { value: 1 }],
-        [{ value: 1 }, { value: 1 }, { value: 0 }]
-    ],
-    [
-        [{ value: 1 }, { value: 1 }, { value: 0 }],
-        [{ value: 0 }, { value: 1 }, { value: 1 }]
-    ],
-    [
-        [{ value: 1 }, { value: 0 }],
-        [{ value: 1 }, { value: 1 }],
-        [{ value: 0 }, { value: 1 }]
-    ],
-    [
-        [{ value: 0 }, { value: 1 }],
-        [{ value: 1 }, { value: 1 }],
-        [{ value: 1 }, { value: 0 }]
-    ],
-
-    // Z - 4 варианта (зеркальные S)
-    [
-        [{ value: 1 }, { value: 1 }, { value: 0 }],
-        [{ value: 0 }, { value: 1 }, { value: 1 }]
-    ],
-    [
-        [{ value: 0 }, { value: 1 }, { value: 1 }],
-        [{ value: 1 }, { value: 1 }, { value: 0 }]
-    ],
-    [
-        [{ value: 0 }, { value: 1 }],
-        [{ value: 1 }, { value: 1 }],
-        [{ value: 1 }, { value: 0 }]
-    ],
-    [
-        [{ value: 1 }, { value: 0 }],
-        [{ value: 1 }, { value: 1 }],
-        [{ value: 0 }, { value: 1 }]
-    ],
-
-    // 2x3 фигуры
-    [
-        [{ value: 1 }, { value: 1 }, { value: 1 }],
-        [{ value: 1 }, { value: 1 }, { value: 1 }]
-    ],
-    [
-        [{ value: 1 }, { value: 1 }],
-        [{ value: 1 }, { value: 1 }],
-        [{ value: 1 }, { value: 1 }]
-    ],
-    [
-        [{ value: 1 }, { value: 1 }, { value: 1 }],
-        [{ value: 0 }, { value: 1 }, { value: 0 }]
-    ],
-    [
-        [{ value: 0 }, { value: 1 }, { value: 0 }],
-        [{ value: 1 }, { value: 1 }, { value: 1 }]
-    ],
-
-    // 3x3 фигуры
     [
         [{ value: 1 }, { value: 1 }, { value: 1 }],
         [{ value: 1 }, { value: 1 }, { value: 1 }],
         [{ value: 1 }, { value: 1 }, { value: 1 }]
     ],
 
-    // Дополнительные фигуры
+    // Угловые фигуры (2x2) - 4 варианта
+    [
+        [{ value: 1 }, { value: 0 }],
+        [{ value: 1 }, { value: 1 }]
+    ],
+    [
+        [{ value: 0 }, { value: 1 }],
+        [{ value: 1 }, { value: 1 }]
+    ],
+    [
+        [{ value: 1 }, { value: 1 }],
+        [{ value: 1 }, { value: 0 }]
+    ],
+    [
+        [{ value: 1 }, { value: 1 }],
+        [{ value: 0 }, { value: 1 }]
+    ],
+
+    // Угловые фигуры (3x3) - 4 варианта
     [
         [{ value: 1 }, { value: 1 }, { value: 1 }],
+        [{ value: 1 }, { value: 0 }, { value: 0 }],
         [{ value: 1 }, { value: 0 }, { value: 0 }]
     ],
     [
         [{ value: 1 }, { value: 1 }, { value: 1 }],
+        [{ value: 0 }, { value: 0 }, { value: 1 }],
         [{ value: 0 }, { value: 0 }, { value: 1 }]
     ],
     [
+        [{ value: 1 }, { value: 0 }, { value: 0 }],
         [{ value: 1 }, { value: 0 }, { value: 0 }],
         [{ value: 1 }, { value: 1 }, { value: 1 }]
     ],
     [
         [{ value: 0 }, { value: 0 }, { value: 1 }],
+        [{ value: 0 }, { value: 0 }, { value: 1 }],
         [{ value: 1 }, { value: 1 }, { value: 1 }]
+    ],
+
+    // L-образные фигуры - 4 варианта
+    [
+        [{ value: 1 }, { value: 0 }],
+        [{ value: 1 }, { value: 0 }],
+        [{ value: 1 }, { value: 1 }]
+    ],
+    [
+        [{ value: 0 }, { value: 1 }],
+        [{ value: 0 }, { value: 1 }],
+        [{ value: 1 }, { value: 1 }]
+    ],
+    [
+        [{ value: 1 }, { value: 1 }],
+        [{ value: 1 }, { value: 0 }],
+        [{ value: 1 }, { value: 0 }]
+    ],
+    [
+        [{ value: 1 }, { value: 1 }],
+        [{ value: 0 }, { value: 1 }],
+        [{ value: 0 }, { value: 1 }]
+    ],
+
+    // Прямоугольники (2x3) - 2 варианта
+    [
+        [{ value: 1 }, { value: 1 }, { value: 1 }],
+        [{ value: 1 }, { value: 1 }, { value: 1 }]
+    ],
+    [
+        [{ value: 1 }, { value: 1 }],
+        [{ value: 1 }, { value: 1 }],
+        [{ value: 1 }, { value: 1 }]
+    ],
+
+    // T-образные фигуры - 4 варианта
+    [
+        [{ value: 1 }, { value: 1 }, { value: 1 }],
+        [{ value: 0 }, { value: 1 }, { value: 0 }]
+    ],
+    [
+        [{ value: 0 }, { value: 1 }, { value: 0 }],
+        [{ value: 1 }, { value: 1 }, { value: 1 }]
+    ],
+    [
+        [{ value: 1 }, { value: 0 }],
+        [{ value: 1 }, { value: 1 }],
+        [{ value: 1 }, { value: 0 }]
+    ],
+    [
+        [{ value: 0 }, { value: 1 }],
+        [{ value: 1 }, { value: 1 }],
+        [{ value: 0 }, { value: 1 }]
+    ],
+
+    // S-образные фигуры - 4 варианта
+    [
+        [{ value: 0 }, { value: 1 }, { value: 1 }],
+        [{ value: 1 }, { value: 1 }, { value: 0 }]
+    ],
+    [
+        [{ value: 1 }, { value: 1 }, { value: 0 }],
+        [{ value: 0 }, { value: 1 }, { value: 1 }]
+    ],
+    [
+        [{ value: 1 }, { value: 0 }],
+        [{ value: 1 }, { value: 1 }],
+        [{ value: 0 }, { value: 1 }]
+    ],
+    [
+        [{ value: 0 }, { value: 1 }],
+        [{ value: 1 }, { value: 1 }],
+        [{ value: 1 }, { value: 0 }]
+    ],
+
+    // Диагональные фигуры (3 клетки) - 4 варианта
+    [
+        [{ value: 0 }, { value: 0 }, { value: 1 }],
+        [{ value: 0 }, { value: 1 }, { value: 0 }],
+        [{ value: 1 }, { value: 0 }, { value: 0 }]
+    ],
+    [
+        [{ value: 1 }, { value: 0 }, { value: 0 }],
+        [{ value: 0 }, { value: 1 }, { value: 0 }],
+        [{ value: 0 }, { value: 0 }, { value: 1 }]
+    ],
+
+    // Диагональные фигуры (2 клетки) - 2 варианта
+    [
+        [{ value: 0 }, { value: 1 }],
+        [{ value: 1 }, { value: 0 }]
     ]
 ];
 
@@ -191,11 +206,24 @@ export class BlockGenerator {
     private lastGeneratedBlocks: Block[] = [];
     private blockBag: Block[] = [];
     private previewBlock: Block | null = null;
-    private readonly comboThreshold: number = 0.3; // Уменьшаем порог для более частых комбо
-    private readonly maxRepeatedBlocks: number = 2; // Уменьшаем количество повторений
-    private readonly minComboPotential: number = 2; // Минимальное количество потенциальных линий для комбо
-    private readonly comboChance: number = 0.6; // Шанс генерации комбо-набора
-    private readonly complementaryChance: number = 0.3; // Шанс генерации комплементарных фигур
+    private readonly comboThreshold: number = 0.3;
+    private readonly maxRepeatedBlocks: number = 2;
+    private readonly minComboPotential: number = 2;
+    private readonly comboChance: number = 0.6;
+    private readonly complementaryChance: number = 0.3;
+    private readonly blockTypeWeights = {
+        square: 0.35,    // Квадратные и прямоугольные фигуры
+        line: 0.25,      // Линейные фигуры (кроме 1x2)
+        L: 0.15,        // L-образные фигуры
+        T: 0.10,        // T-образные фигуры
+        S: 0.10,        // S-образные фигуры
+        corner: 0.05,   // Угловые фигуры
+        diagonal: 0.0,  // Диагональные фигуры (используются только в крайнем случае)
+        small: 0.0      // Фигура 1x2 (используется только в крайнем случае)
+    };
+    private readonly minLinesToClear = 2;
+    private readonly comboMaintenanceThreshold = 0.7;
+    private readonly emergencyBlockTypes = ['diagonal', 'small'];
 
     constructor() {
         this.evaluator = new DifficultyEvaluator();
@@ -424,61 +452,296 @@ export class BlockGenerator {
         return complementaryBlocks;
     }
 
-    generateNextBlocks(board: Matrix): Block[] {
-        // Сначала проверяем возможность создания комбо
-        if (Math.random() < this.comboChance) {
-            const comboOpportunities = this.findComboOpportunities(board);
-            if (comboOpportunities.length > 0) {
-                // Выбираем лучшую возможность
-                const bestOpportunity = comboOpportunities[0];
-                const firstBlock = this.blockBag[Math.floor(Math.random() * this.blockBag.length)];
-                
-                // Ищем комплементарные блоки
-                const complementaryBlocks = this.findComplementaryBlocks(board, firstBlock, bestOpportunity.positions[0]);
-                
-                if (complementaryBlocks.length >= 2) {
-                    // Создаем набор из 3 фигур: первая + 2 комплементарные
-                    const selectedBlocks = [
-                        firstBlock,
-                        complementaryBlocks[0],
-                        complementaryBlocks[1]
-                    ];
+    private getBlockType(block: Block): string {
+        const rows = block.matrix.length;
+        const cols = block.matrix[0].length;
+        const size = this.calculateBlockSize(block);
 
-                    // Добавляем уникальные ID и цвета
-                    return selectedBlocks.map((block, index) => ({
-                        ...block,
-                        uniqueId: `${block.id}_${Date.now()}_${index}`,
-                        color: this.getRandomColor()
-                    }));
+        // Определяем базовый тип фигуры
+        if (size === 4) {
+            if (rows === 2 && cols === 2) return 'square';
+            if (rows === 1 || cols === 1) {
+                // Проверяем, является ли это фигурой 1x2
+                if ((rows === 1 && cols === 2) || (rows === 2 && cols === 1)) {
+                    return 'small';
+                }
+                return 'line';
+            }
+        }
+        if (size === 3) {
+            if (this.isLShape(block)) return 'L';
+            if (this.isTShape(block)) return 'T';
+            if (this.isSShape(block)) return 'S';
+        }
+        if (this.isCornerShape(block)) return 'corner';
+        if (this.isDiagonalShape(block)) return 'diagonal';
+        return 'other';
+    }
+
+    private isCornerShape(block: Block): boolean {
+        const matrix = block.matrix;
+        const rows = matrix.length;
+        const cols = matrix[0].length;
+        
+        // Проверяем все возможные угловые формы
+        const patterns = [
+            [[1,0], [1,1]], // Угол
+            [[0,1], [1,1]], // Угол отраженный
+            [[1,1], [1,0]], // Угол перевернутый
+            [[1,1], [0,1]]  // Угол перевернутый отраженный
+        ];
+
+        return patterns.some(pattern => {
+            if (pattern.length !== rows || pattern[0].length !== cols) return false;
+            return pattern.every((row, y) =>
+                row.every((val, x) => matrix[y][x].value === val)
+            );
+        });
+    }
+
+    private isDiagonalShape(block: Block): boolean {
+        const matrix = block.matrix;
+        const rows = matrix.length;
+        const cols = matrix[0].length;
+        
+        // Проверяем все возможные диагональные формы
+        const patterns = [
+            [[0,1], [1,0]], // Диагональ 2x2
+            [[1,0], [0,1]], // Диагональ 2x2 отраженная
+            [[0,0,1], [0,1,0], [1,0,0]], // Диагональ 3x3
+            [[1,0,0], [0,1,0], [0,0,1]]  // Диагональ 3x3 отраженная
+        ];
+
+        return patterns.some(pattern => {
+            if (pattern.length !== rows || pattern[0].length !== cols) return false;
+            return pattern.every((row, y) =>
+                row.every((val, x) => matrix[y][x].value === val)
+            );
+        });
+    }
+
+    private canPlaceBlock(board: Matrix, block: Block, position: Position): boolean {
+        const { x, y } = position;
+        const matrix = block.matrix;
+
+        // Проверяем границы доски
+        if (y + matrix.length > board.length || x + matrix[0].length > board[0].length) {
+            return false;
+        }
+
+        // Проверяем каждую клетку блока
+        for (let i = 0; i < matrix.length; i++) {
+            for (let j = 0; j < matrix[i].length; j++) {
+                if (matrix[i][j].value === 1) {
+                    // Проверяем, не выходит ли за границы
+                    if (y + i >= board.length || x + j >= board[0].length) {
+                        return false;
+                    }
+                    // Проверяем, не занята ли клетка
+                    if (board[y + i][x + j].value === 1) {
+                        return false;
+                    }
                 }
             }
         }
 
-        // Если не удалось создать комбо, используем случайную генерацию
-        return this.generateRandomBlocks(board);
+        return true;
     }
 
-    private generateRandomBlocks(board: Matrix): Block[] {
+    private evaluateBlockForCombo(block: Block, board: Matrix): number {
+        let maxComboPotential = 0;
+        const rows = board.length;
+        const cols = board[0].length;
+
+        // Проверяем все возможные позиции размещения
+        for (let y = 0; y < rows; y++) {
+            for (let x = 0; x < cols; x++) {
+                if (this.canPlaceBlock(board, block, { x, y })) {
+                    const comboPotential = this.simulatePlacementForCombo(board, block, { x, y });
+                    maxComboPotential = Math.max(maxComboPotential, comboPotential);
+                }
+            }
+        }
+
+        return maxComboPotential;
+    }
+
+    private simulatePlacementForCombo(board: Matrix, block: Block, position: Position): number {
+        const simulatedBoard = board.map(row => [...row]);
+        const { x, y } = position;
+        const matrix = block.matrix;
+
+        // Размещаем блок
+        for (let i = 0; i < matrix.length; i++) {
+            for (let j = 0; j < matrix[i].length; j++) {
+                if (matrix[i][j].value === 1) {
+                    simulatedBoard[y + i][x + j] = { value: 1, color: block.color };
+                }
+            }
+        }
+
+        // Подсчитываем потенциал комбо
+        let comboPotential = 0;
+        
+        // Проверяем строки
+        for (let i = 0; i < simulatedBoard.length; i++) {
+            if (simulatedBoard[i].every(cell => cell.value === 1)) {
+                comboPotential++;
+            }
+        }
+
+        // Проверяем столбцы
+        for (let j = 0; j < simulatedBoard[0].length; j++) {
+            if (simulatedBoard.every(row => row[j].value === 1)) {
+                comboPotential++;
+            }
+        }
+
+        return comboPotential;
+    }
+
+    private getWeightedRandomBlock(candidates: Block[]): Block {
+        // Группируем блоки по типам
+        const blocksByType = candidates.reduce((acc, block) => {
+            const type = this.getBlockType(block);
+            if (!acc[type]) acc[type] = [];
+            acc[type].push(block);
+            return acc;
+        }, {} as Record<string, Block[]>);
+
+        // Вычисляем веса для каждого типа
+        const typeWeights = Object.entries(blocksByType).map(([type, blocks]) => ({
+            type,
+            weight: this.blockTypeWeights[type as keyof typeof this.blockTypeWeights] * blocks.length
+        }));
+
+        // Выбираем тип с учетом весов
+        const totalWeight = typeWeights.reduce((sum, { weight }) => sum + weight, 0);
+        let random = Math.random() * totalWeight;
+        
+        let selectedType = typeWeights[0].type;
+        for (const { type, weight } of typeWeights) {
+            random -= weight;
+            if (random <= 0) {
+                selectedType = type;
+                break;
+            }
+        }
+
+        // Выбираем случайный блок выбранного типа
+        const blocksOfSelectedType = blocksByType[selectedType];
+        return blocksOfSelectedType[Math.floor(Math.random() * blocksOfSelectedType.length)];
+    }
+
+    public generateNextBlocks(board: Matrix): Block[] {
+        // Проверяем возможность поддержания комбо
+        const shouldMaintainCombo = this.shouldMaintainCombo(board);
+        
+        if (shouldMaintainCombo) {
+            const comboBlocks = this.findBlocksForComboMaintenance(board);
+            if (comboBlocks.length >= 3) {
+                return comboBlocks.map(block => ({
+                    ...block,
+                    uniqueId: `${block.id}_${Date.now()}_${Math.random()}`,
+                    color: this.getRandomColor()
+                }));
+            }
+        }
+
+        // Ищем блоки с потенциалом очистки нескольких линий
+        const lineClearingBlocks = this.findBlocksForLineClearing(board);
+        if (lineClearingBlocks.length >= 3) {
+            return lineClearingBlocks.map(block => ({
+                ...block,
+                uniqueId: `${block.id}_${Date.now()}_${Math.random()}`,
+                color: this.getRandomColor()
+            }));
+        }
+
+        // Если не нашли подходящие блоки, используем взвешенную случайную генерацию
+        return this.generateWeightedRandomBlocks(board);
+    }
+
+    private shouldMaintainCombo(board: Matrix): boolean {
+        // Проверяем заполненность поля
+        const totalCells = board.length * board[0].length;
+        const filledCells = board.reduce((sum, row) => 
+            sum + row.filter(cell => cell.value === 1).length, 0
+        );
+        const fillRatio = filledCells / totalCells;
+
+        // Если поле заполнено более чем на 70%, пытаемся поддерживать комбо
+        return fillRatio > this.comboMaintenanceThreshold;
+    }
+
+    private findBlocksForComboMaintenance(board: Matrix): Block[] {
+        const candidates = this.blockBag.map(block => ({
+            block,
+            comboPotential: this.evaluateBlockForCombo(block, board)
+        }));
+
+        // Сортируем по потенциалу комбо
+        candidates.sort((a, b) => b.comboPotential - a.comboPotential);
+
+        // Выбираем лучшие блоки с учетом весов типов
+        return candidates
+            .filter(({ comboPotential }) => comboPotential >= this.minComboPotential)
+            .map(({ block }) => block)
+            .slice(0, 3);
+    }
+
+    private findBlocksForLineClearing(board: Matrix): Block[] {
+        const candidates = this.blockBag.map(block => ({
+            block,
+            linesToClear: this.evaluateBlockForCombo(block, board)
+        }));
+
+        // Сортируем по количеству линий для очистки
+        candidates.sort((a, b) => b.linesToClear - a.linesToClear);
+
+        // Выбираем блоки, способные очистить минимум 2 линии
+        return candidates
+            .filter(({ linesToClear }) => linesToClear >= this.minLinesToClear)
+            .map(({ block }) => block)
+            .slice(0, 3);
+    }
+
+    private generateWeightedRandomBlocks(board: Matrix): Block[] {
         const selectedBlocks: Block[] = [];
         const usedTypes = new Set<string>();
+        let attempts = 0;
+        const maxAttempts = 10;
 
-        while (selectedBlocks.length < 3) {
-            // Выбираем случайную фигуру из мешка
-            const randomIndex = Math.floor(Math.random() * this.blockBag.length);
-            const block = this.blockBag[randomIndex];
+        while (selectedBlocks.length < 3 && attempts < maxAttempts) {
+            attempts++;
             
-            // Проверяем, не превышен ли лимит повторений
-            const blockType = this.getBaseFigureType(block);
-            const typeCount = selectedBlocks.filter(b => this.getBaseFigureType(b) === blockType).length;
-            
-            if (typeCount < this.maxRepeatedBlocks) {
-                selectedBlocks.push({
-                    ...block,
-                    uniqueId: `${block.id}_${Date.now()}_${selectedBlocks.length}`,
-                    color: this.getRandomColor()
+            // Сначала пытаемся использовать обычные блоки
+            let availableBlocks = this.blockBag.filter(block => {
+                const type = this.getBlockType(block);
+                return !this.emergencyBlockTypes.includes(type) && 
+                       (!usedTypes.has(type) || 
+                        selectedBlocks.filter(b => this.getBlockType(b) === type).length < this.maxRepeatedBlocks);
+            });
+
+            // Если обычных блоков не осталось, используем экстренные
+            if (availableBlocks.length === 0) {
+                availableBlocks = this.blockBag.filter(block => {
+                    const type = this.getBlockType(block);
+                    return this.emergencyBlockTypes.includes(type) && 
+                           (!usedTypes.has(type) || 
+                            selectedBlocks.filter(b => this.getBlockType(b) === type).length < this.maxRepeatedBlocks);
                 });
-                usedTypes.add(blockType);
             }
+
+            if (availableBlocks.length === 0) break;
+
+            const selectedBlock = this.getWeightedRandomBlock(availableBlocks);
+            selectedBlocks.push({
+                ...selectedBlock,
+                uniqueId: `${selectedBlock.id}_${Date.now()}_${selectedBlocks.length}`,
+                color: this.getRandomColor()
+            });
+            usedTypes.add(this.getBlockType(selectedBlock));
         }
 
         return selectedBlocks;

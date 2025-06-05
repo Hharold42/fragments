@@ -1,5 +1,6 @@
-
 import { Block, Matrix, Position, Cell } from "../data/types";
+import { findAllValidPositions } from "./positions";
+import { BLOCKS } from "../data/pieces";
 
 export function canPlaceBlock(
   board: Matrix,
@@ -136,6 +137,12 @@ export function isGameOver(board: Matrix): boolean {
 interface BlockPlacement {
     block: Block;
     positions: Position[];
+}
+
+function generateRandomBlocks(): Block[] {
+    // Select 3 random blocks from BLOCKS
+    const shuffled = [...BLOCKS].sort(() => Math.random() - 0.5);
+    return shuffled.slice(0, 3);
 }
 
 export function generateGuaranteedBlocks(board: Matrix): Block[] {

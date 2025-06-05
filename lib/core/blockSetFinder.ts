@@ -143,8 +143,8 @@ export class BlockSetFinder {
             // Обновляем доску для следующего блока
             for (let y = 0; y < block.matrix.length; y++) {
                 for (let x = 0; x < block.matrix[0].length; x++) {
-                    if (block.matrix[y][x] === 1) {
-                        currentBoard[bestPosition.y + y][bestPosition.x + x] = 1;
+                    if (block.matrix[y][x].value === 1) {
+                        currentBoard[bestPosition.y + y][bestPosition.x + x] = { value: 1, color: block.color };
                     }
                 }
             }
@@ -170,7 +170,7 @@ export class BlockSetFinder {
         // Проверяем пространство вокруг размещенного блока
         for (let y = Math.max(0, position.y - 1); y < Math.min(rows, position.y + block.matrix.length + 1); y++) {
             for (let x = Math.max(0, position.x - 1); x < Math.min(cols, position.x + block.matrix[0].length + 1); x++) {
-                if (board[y][x] === 0) {
+                if (board[y][x].value === 0) {
                     space++;
                 }
             }
@@ -225,7 +225,7 @@ export class BlockSetFinder {
 
     private calculateBlockSize(block: Block): number {
         return block.matrix.reduce(
-            (sum, row) => sum + row.reduce((rowSum, cell) => rowSum + cell, 0),
+            (sum, row) => sum + row.reduce((rowSum, cell) => rowSum + cell.value, 0),
             0
         );
     }
