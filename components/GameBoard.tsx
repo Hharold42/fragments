@@ -19,8 +19,8 @@ const DEFAULT_CELL_SIZE = 43.75;
 interface GameBoardProps {
   width?: number;
   height?: number;
-  // onScoreUpdate: (score: number) => void;
-  // onGameOver: () => void;
+  onScoreUpdate: (score: number) => void;
+  onGameOver: () => void;
   onExitGame: () => void;
 }
 
@@ -160,8 +160,8 @@ const useGridPosition = () => {
 export const GameBoard: React.FC<GameBoardProps> = ({
   width = 8,
   height = 8,
-  // onScoreUpdate,
-  // onGameOver,
+  onScoreUpdate,
+  onGameOver,
   onExitGame,
 }) => {
   const {
