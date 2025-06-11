@@ -1,10 +1,17 @@
 import { create } from "zustand";
-import { Block, GameState, Position, ScoreResult, Matrix, Cell } from "../data/types";
+import {
+  Block,
+  GameState,
+  Position,
+  ScoreResult,
+  Matrix,
+  Cell,
+} from "../data/types";
 import {
   placeBlock,
   clearLines,
   isGameOver,
-  getCellsToClear
+  getCellsToClear,
 } from "../core/engine";
 import { calculateValidPositions } from "../core/positions";
 import { ScoreCalculator } from "../core/score";
@@ -27,14 +34,18 @@ const scoreCalculator = new ScoreCalculator();
 const blockGenerator = new BlockGenerator();
 const difficultyEvaluator = new DifficultyEvaluator();
 
-const placePieceOnBoard = (board: Matrix, piece: Block, position: Position): Matrix => {
-  const newBoard = board.map(row => [...row]);
+const placePieceOnBoard = (
+  board: Matrix,
+  piece: Block,
+  position: Position
+): Matrix => {
+  const newBoard = board.map((row) => [...row]);
   piece.matrix.forEach((row, dy) => {
     row.forEach((cell, dx) => {
       if (cell.value === 1) {
         newBoard[position.y + dy][position.x + dx] = {
           value: 1,
-          color: piece.color
+          color: piece.color,
         };
       }
     });
@@ -42,29 +53,38 @@ const placePieceOnBoard = (board: Matrix, piece: Block, position: Position): Mat
   return newBoard;
 };
 
-const calculateScore = (newBoard: Matrix, oldBoard: Matrix, piece: Block, cellsToClear: boolean[][], position: Position): ScoreResult => {
+const calculateScore = (
+  newBoard: Matrix,
+  oldBoard: Matrix,
+  piece: Block,
+  cellsToClear: boolean[][],
+  position: Position
+): ScoreResult => {
   const { newBoard: clearedBoard, clearedLines } = clearLines(newBoard);
   const cellsPlaced = piece.matrix.reduce(
     (sum, row) => sum + row.reduce((rowSum, cell) => rowSum + cell.value, 0),
     0
   );
   const cellsInLines = cellsToClear.reduce((sum, row, y) => {
-    return sum + row.reduce((rowSum, cell, x) => {
-      if (cell) {
-        const relX = x - position.x;
-        const relY = y - position.y;
-        if (
-          relY >= 0 &&
-          relY < piece.matrix.length &&
-          relX >= 0 &&
-          relX < piece.matrix[0].length &&
-          piece.matrix[relY][relX].value === 1
-        ) {
-          return rowSum + 1;
+    return (
+      sum +
+      row.reduce((rowSum, cell, x) => {
+        if (cell) {
+          const relX = x - position.x;
+          const relY = y - position.y;
+          if (
+            relY >= 0 &&
+            relY < piece.matrix.length &&
+            relX >= 0 &&
+            relX < piece.matrix[0].length &&
+            piece.matrix[relY][relX].value === 1
+          ) {
+            return rowSum + 1;
+          }
         }
-      }
-      return rowSum;
-    }, 0);
+        return rowSum;
+      }, 0)
+    );
   }, 0);
 
   return scoreCalculator.calculateScore(
@@ -120,7 +140,9 @@ export const useGameStore = create<
   setPreviewBlock: (block) => set({ previewBlock: block }),
 
   initializeGame: () => {
-    const blocksWithInitialIndex = blockGenerator.generateNextBlocks(get().board);
+    const blocksWithInitialIndex = blockGenerator.generateNextBlocks(
+      get().board
+    );
     set({
       currentPieces: blocksWithInitialIndex,
       previewBlock: blockGenerator.getPreviewBlock(),
@@ -134,13 +156,22 @@ export const useGameStore = create<
 
     if (!draggedPiece) return;
 
+    // First, place the piece on the board without clearing lines
     const newBoard = placePieceOnBoard(board, draggedPiece, { x, y });
     const cellsToClear = getCellsToClear(newBoard, draggedPiece, { x, y });
-    const hasCellsToClear = cellsToClear.some((row) => row.some((cell) => cell));
+    const hasCellsToClear = cellsToClear.some((row) =>
+      row.some((cell) => cell)
+    );
 
-    const scoreResult = calculateScore(newBoard, board, draggedPiece, cellsToClear, { x, y });
+    // Calculate score and prepare for line clearing
+    const scoreResult = calculateScore(
+      newBoard,
+      board,
+      draggedPiece,
+      cellsToClear,
+      { x, y }
+    );
     const { newBoard: boardAfterClearing } = clearLines(newBoard);
-
 
     const newRound = piecesPlaced + 1 >= 3 ? round + 1 : round;
     const newPiecesPlaced = piecesPlaced + 1 >= 3 ? 0 : piecesPlaced + 1;
@@ -149,31 +180,36 @@ export const useGameStore = create<
       (p) => p.uniqueId !== draggedPiece.uniqueId
     );
 
+    // First update with the piece placed but not cleared
+    set({
+      board: newBoard, // Use newBoard instead of boardAfterClearing
+      currentPieces: newCurrentPieces,
+      draggedPiece: null,
+      dragPosition: null,
+      hoverCell: null,
+      round: newRound,
+      piecesPlaced: newPiecesPlaced,
+      score: get().score + scoreResult.totalPoints,
+      lastScoreResult: scoreResult,
+      isAnimating: hasCellsToClear, // Set animation state if there are lines to clear
+    });
+
+    // If there are lines to clear, update the board after animation
+    if (hasCellsToClear) {
+      setTimeout(() => {
+        set({
+          board: boardAfterClearing,
+          isAnimating: false,
+        });
+      }, 300); // Match the animation duration from CSS
+    }
+
+    // Handle new blocks if needed
     if (newPiecesPlaced === 0) {
       const newBlocks = blockGenerator.generateNextBlocks(boardAfterClearing);
       set({
-        board: boardAfterClearing,
         currentPieces: newBlocks,
         previewBlock: blockGenerator.getPreviewBlock(),
-        draggedPiece: null,
-        dragPosition: null,
-        hoverCell: null,
-        round: newRound,
-        piecesPlaced: newPiecesPlaced,
-        score: get().score + scoreResult.totalPoints,
-        lastScoreResult: scoreResult,
-      });
-    } else {
-      set({
-        board: boardAfterClearing,
-        currentPieces: newCurrentPieces,
-        draggedPiece: null,
-        dragPosition: null,
-        hoverCell: null,
-        round: newRound,
-        piecesPlaced: newPiecesPlaced,
-        score: get().score + scoreResult.totalPoints,
-        lastScoreResult: scoreResult,
       });
     }
   },
@@ -193,7 +229,7 @@ export const useGameStore = create<
       dragPosition: null,
       lastScoreResult: null,
       previewBlock: null,
-      blockEvaluations: []
+      blockEvaluations: [],
     });
     scoreCalculator.resetCombo();
   },

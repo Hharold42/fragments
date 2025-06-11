@@ -19,6 +19,7 @@ interface ScoreResult {
   comboLevel: number;
   comboBonus: number;
   isBoardCleared: boolean;
+  movesSinceLastSuccess: number;
 }
 
 export class ScoreCalculator {
@@ -124,6 +125,8 @@ export class ScoreCalculator {
       clearedBlocksPoints + 
       boardClearBonus;
 
+    const movesSinceLastSuccess = this.moveCounter - this.lastSuccessfulMove;
+
     return {
       totalPoints,
       clearedLines,
@@ -133,7 +136,8 @@ export class ScoreCalculator {
       clearedBlocksPoints,
       comboLevel: this.comboCounter,
       comboBonus,
-      isBoardCleared
+      isBoardCleared,
+      movesSinceLastSuccess
     };
   }
 } 

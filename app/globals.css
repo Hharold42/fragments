@@ -30,6 +30,7 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --game-background: #143b74;
 }
 
 @theme {
@@ -47,6 +48,7 @@
   :root {
     --background: #0a0a0a;
     --foreground: #ededed;
+    --game-background: #143b74;
   }
 }
 
@@ -222,7 +224,7 @@ body {
     opacity: 0.7;
   }
   100% {
-    transform: translateY(calc(100vh + 20%));
+    transform: translateY(calc(100vh));
     opacity: 0;
   }
 }
@@ -241,7 +243,7 @@ body {
 
 .falling-square {
   background: #ffffff0f;
-  border-radius: 0.25rem 
+  border-radius: 0.25rem;
 }
 
 .no-select {
@@ -250,3 +252,159 @@ body {
   -ms-user-select: none;
   user-select: none;
 }
+
+@property --border-angle {
+  inherits: false;
+  initial-value: 0deg;
+  syntax: "<angle>";
+}
+.glowing-border {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+  background: linear-gradient(
+        120deg,
+        var(--bg-color),
+        #1e293b 50%,
+        var(--bg-color)
+      )
+      padding-box,
+    conic-gradient(
+        from var(--border-angle),
+        var(--border-start) 10%,
+        var(--border-middle) 50%,
+        var(--border-end) 70%,
+        var(--border-middle) 94%,
+        var(--border-start)
+      )
+      border-box;
+  border: 6px solid transparent;
+  animation: border-rotate var(--animation-speed) linear infinite;
+  will-change: filter, transform;
+  filter: drop-shadow(0 0 var(--blur-type) var(--border-end))
+    drop-shadow(0 0 var(--blur-type) var(--border-start))
+    brightness(var(--brightness, 1));
+}
+
+@keyframes border-rotate {
+  to {
+    --border-angle: 360deg;
+  }
+}
+
+/* @keyframes combo-explosion {
+  0% {
+    filter: drop-shadow(1px 1px 10px var(--border-end))
+      drop-shadow(0 0 10px var(--border-start)) brightness(1);
+  }
+  50% {
+    filter: drop-shadow(1px 1px 15px var(--border-end))
+      drop-shadow(0 0  15px var(--border-start))
+      brightness(1.2);
+  }
+  100% {
+    filter: drop-shadow(1px 1px 10px var(--border-end))
+      drop-shadow(0 0 10px var(--border-start)) brightness(1);
+  }
+}
+
+.combo-explosion {
+  animation: combo-explosion 0.7s ease-out;
+} */
+
+.combo-text {
+  opacity: 0;
+  transform: translateX(-10vh);
+  transition: opacity 0.8s ease-in-out, transform 0.8s ease-in-out;
+  will-change: opacity, transform;
+  pointer-events: none;
+}
+
+.combo-text.show {
+  animation: combo-text-show 0.8s ease-in-out;
+}
+
+@keyframes combo-text-show {
+  0% {
+    transform: translateX(-10vw);
+    opacity: 0;
+  }
+  40% {
+    transform: translateX(0);
+    opacity: 1;
+    scale: 1.2;
+  }
+  60% {
+    transform: translateX(0);
+    opacity: 1;
+    scale: 1.1;
+  }
+  100% {
+    transform: translateX(10vw);
+    opacity: 0;
+  }
+}
+
+/* Анимация для горизонтальных линий */
+@keyframes clearLineHorizontal {
+  0% {
+    transform: scaleX(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scaleX(1.2);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scaleX(0);
+    opacity: 0;
+  }
+}
+
+/* Анимация для вертикальных линий */
+@keyframes clearLineVertical {
+  0% {
+    transform: scaleY(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scaleY(1.2);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scaleY(0);
+    opacity: 0;
+  }
+}
+
+.clearing-line-horizontal {
+  animation: clearLineHorizontal 0.3s ease-in-out forwards;
+  transform-origin: center;
+}
+
+.clearing-line-vertical {
+  animation: clearLineVertical 0.3s ease-in-out forwards;
+  transform-origin: center;
+}
+
+@keyframes clearPiece {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 0.8;
+    filter: brightness(1.5);
+  }
+  100% {
+    transform: scale(0);
+    opacity: 0;
+  }
+}
+
+.clearing-piece {
+  animation: clearPiece 0.3s ease-in-out forwards;
+  transform-origin: center;
+}
+
