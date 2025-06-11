@@ -206,36 +206,26 @@ export class BlockGenerator {
     private lastGeneratedBlocks: Block[] = [];
     private blockBag: Block[] = [];
     private previewBlock: Block | null = null;
-    private readonly comboThreshold: number = 0.3;
-    private readonly maxRepeatedBlocks: number = 2;
-    private readonly minComboPotential: number = 2;
-    private readonly comboChance: number = 0.6;
-    private readonly complementaryChance: number = 0.3;
-    private readonly blockTypeWeights = {
-        square: 0.35,    // Квадратные и прямоугольные фигуры
-        line: 0.25,      // Линейные фигуры (кроме 1x2)
-        L: 0.15,        // L-образные фигуры
-        T: 0.10,        // T-образные фигуры
-        S: 0.10,        // S-образные фигуры
-        corner: 0.05,   // Угловые фигуры
-        diagonal: 0.0,  // Диагональные фигуры (используются только в крайнем случае)
-        small: 0.0      // Фигура 1x2 (используется только в крайнем случае)
-    };
+    
+    // Новые константы для улучшенной логики
     private readonly minLinesToClear = 2;
-    private readonly comboMaintenanceThreshold = 0.7;
-    private readonly emergencyBlockTypes = ['diagonal', 'small'];
+    private readonly blockTypeWeights: Record<string, number> = {
+        line: 1.5,      // Линии (горизонтальные и вертикальные)
+        square: 1.3,    // Квадраты
+        corner: 1.2,    // Угловые фигуры
+        other: 1.0      // Остальные фигуры
+    };
 
     constructor() {
         this.evaluator = new DifficultyEvaluator();
-        const blocks: Block[] = ALL_BLOCKS.map((matrix, index) => ({
+        this.blockSetFinder = new BlockSetFinder(ALL_BLOCKS.map((matrix, index) => ({
             id: `block-${index}`,
             uniqueId: `block-${index}_${Date.now()}`,
             name: `Block ${index + 1}`,
             matrix,
             difficulty: this.getDifficultyForIndex(index),
             color: this.getRandomColor()
-        }));
-        this.blockSetFinder = new BlockSetFinder(blocks);
+        })));
         this.fillBlockBag();
     }
 
@@ -455,46 +445,44 @@ export class BlockGenerator {
     private getBlockType(block: Block): string {
         const rows = block.matrix.length;
         const cols = block.matrix[0].length;
-        const size = this.calculateBlockSize(block);
-
-        // Определяем базовый тип фигуры
-        if (size === 4) {
-            if (rows === 2 && cols === 2) return 'square';
-            if (rows === 1 || cols === 1) {
-                // Проверяем, является ли это фигурой 1x2
-                if ((rows === 1 && cols === 2) || (rows === 2 && cols === 1)) {
-                    return 'small';
-                }
-                return 'line';
-            }
-        }
-        if (size === 3) {
-            if (this.isLShape(block)) return 'L';
-            if (this.isTShape(block)) return 'T';
-            if (this.isSShape(block)) return 'S';
-        }
+        
+        // Проверяем, является ли фигура линией
+        if (rows === 1 || cols === 1) return 'line';
+        
+        // Проверяем, является ли фигура квадратом
+        if (rows === cols && rows <= 3) return 'square';
+        
+        // Проверяем, является ли фигура угловой
         if (this.isCornerShape(block)) return 'corner';
-        if (this.isDiagonalShape(block)) return 'diagonal';
+        
         return 'other';
     }
 
     private isCornerShape(block: Block): boolean {
-        const matrix = block.matrix;
-        const rows = matrix.length;
-        const cols = matrix[0].length;
+        const rows = block.matrix.length;
+        const cols = block.matrix[0].length;
         
-        // Проверяем все возможные угловые формы
+        if (rows < 2 || cols < 2) return false;
+        
+        // Проверяем различные варианты угловых фигур
         const patterns = [
-            [[1,0], [1,1]], // Угол
-            [[0,1], [1,1]], // Угол отраженный
-            [[1,1], [1,0]], // Угол перевернутый
-            [[1,1], [0,1]]  // Угол перевернутый отраженный
+            // 2x2 углы
+            [[1,0], [1,1]],
+            [[0,1], [1,1]],
+            [[1,1], [1,0]],
+            [[1,1], [0,1]],
+            
+            // 3x3 углы
+            [[1,1,1], [1,0,0], [1,0,0]],
+            [[1,1,1], [0,0,1], [0,0,1]],
+            [[1,0,0], [1,0,0], [1,1,1]],
+            [[0,0,1], [0,0,1], [1,1,1]]
         ];
 
         return patterns.some(pattern => {
             if (pattern.length !== rows || pattern[0].length !== cols) return false;
             return pattern.every((row, y) =>
-                row.every((val, x) => matrix[y][x].value === val)
+                row.every((val, x) => block.matrix[y][x].value === val)
             );
         });
     }
@@ -634,32 +622,27 @@ export class BlockGenerator {
     }
 
     public generateNextBlocks(board: Matrix): Block[] {
-        // Проверяем возможность поддержания комбо
-        const shouldMaintainCombo = this.shouldMaintainCombo(board);
+        let attempts = 0;
+        const maxAttempts = 10;
         
-        if (shouldMaintainCombo) {
-            const comboBlocks = this.findBlocksForComboMaintenance(board);
-            if (comboBlocks.length >= 3) {
-                return comboBlocks.map(block => ({
-                    ...block,
-                    uniqueId: `${block.id}_${Date.now()}_${Math.random()}`,
-                    color: this.getRandomColor()
-                }));
+        while (attempts < maxAttempts) {
+            // Генерируем набор блоков
+            const blocks = this.generateWeightedRandomBlocks(board);
+            
+            // Проверяем, можно ли разместить все блоки
+            if (this.canPlaceAllBlocks(board, blocks)) {
+                // Логируем успешную генерацию
+                this.logGameState(board, blocks, 0, 0);
+                return blocks;
             }
+            
+            attempts++;
         }
-
-        // Ищем блоки с потенциалом очистки нескольких линий
-        const lineClearingBlocks = this.findBlocksForLineClearing(board);
-        if (lineClearingBlocks.length >= 3) {
-            return lineClearingBlocks.map(block => ({
-                ...block,
-                uniqueId: `${block.id}_${Date.now()}_${Math.random()}`,
-                color: this.getRandomColor()
-            }));
-        }
-
-        // Если не нашли подходящие блоки, используем взвешенную случайную генерацию
-        return this.generateWeightedRandomBlocks(board);
+        
+        // Если не удалось найти подходящий набор, возвращаем случайные блоки
+        const fallbackBlocks = this.generateWeightedRandomBlocks(board);
+        this.logGameState(board, fallbackBlocks, 0, 0);
+        return fallbackBlocks;
     }
 
     private shouldMaintainCombo(board: Matrix): boolean {
@@ -708,43 +691,152 @@ export class BlockGenerator {
 
     private generateWeightedRandomBlocks(board: Matrix): Block[] {
         const selectedBlocks: Block[] = [];
-        const usedTypes = new Set<string>();
-        let attempts = 0;
-        const maxAttempts = 10;
-
-        while (selectedBlocks.length < 3 && attempts < maxAttempts) {
-            attempts++;
-            
-            // Сначала пытаемся использовать обычные блоки
-            let availableBlocks = this.blockBag.filter(block => {
-                const type = this.getBlockType(block);
-                return !this.emergencyBlockTypes.includes(type) && 
-                       (!usedTypes.has(type) || 
-                        selectedBlocks.filter(b => this.getBlockType(b) === type).length < this.maxRepeatedBlocks);
+        const availableBlocks = [...this.blockBag];
+        
+        while (selectedBlocks.length < 3 && availableBlocks.length > 0) {
+            // Вычисляем веса для каждого блока
+            const weights = availableBlocks.map(block => {
+                const blockType = this.getBlockType(block);
+                const typeWeight = this.blockTypeWeights[blockType] || 1.0;
+                const { score } = this.findBestBlockPlacement(board, block);
+                return typeWeight * (score + 1); // +1 чтобы избежать нулевых весов
             });
-
-            // Если обычных блоков не осталось, используем экстренные
-            if (availableBlocks.length === 0) {
-                availableBlocks = this.blockBag.filter(block => {
-                    const type = this.getBlockType(block);
-                    return this.emergencyBlockTypes.includes(type) && 
-                           (!usedTypes.has(type) || 
-                            selectedBlocks.filter(b => this.getBlockType(b) === type).length < this.maxRepeatedBlocks);
-                });
+            
+            // Выбираем блок с учетом весов
+            const totalWeight = weights.reduce((sum, weight) => sum + weight, 0);
+            let random = Math.random() * totalWeight;
+            let selectedIndex = 0;
+            
+            for (let i = 0; i < weights.length; i++) {
+                random -= weights[i];
+                if (random <= 0) {
+                    selectedIndex = i;
+                    break;
+                }
             }
-
-            if (availableBlocks.length === 0) break;
-
-            const selectedBlock = this.getWeightedRandomBlock(availableBlocks);
+            
+            const selectedBlock = availableBlocks[selectedIndex];
             selectedBlocks.push({
                 ...selectedBlock,
                 uniqueId: `${selectedBlock.id}_${Date.now()}_${selectedBlocks.length}`,
                 color: this.getRandomColor()
             });
-            usedTypes.add(this.getBlockType(selectedBlock));
+            
+            // Удаляем выбранный блок из доступных
+            availableBlocks.splice(selectedIndex, 1);
         }
-
+        
         return selectedBlocks;
+    }
+
+    private async logGameState(board: Matrix, blocks: Block[], score: number, linesCleared: number) {
+        try {
+            await fetch('/api/game-logs', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    board,
+                    blocks,
+                    score,
+                    linesCleared,
+                    gameState: 'block_generation'
+                }),
+            });
+        } catch (error) {
+            console.error('Failed to log game state:', error);
+        }
+    }
+
+    private findBestBlockPlacement(board: Matrix, block: Block): { position: Position | null, score: number } {
+        const validPositions = findAllValidPositions(board, block);
+        let bestScore = -1;
+        let bestPosition = null;
+        
+        for (const position of validPositions) {
+            const score = this.evaluateBlockPlacement(board, block, position);
+            if (score > bestScore) {
+                bestScore = score;
+                bestPosition = position;
+            }
+        }
+        
+        return { position: bestPosition, score: bestScore };
+    }
+
+    private evaluateBlockPlacement(board: Matrix, block: Block, position: Position): number {
+        let score = 0;
+        
+        // Создаем временную копию доски
+        const tempBoard = board.map(row => [...row]);
+        
+        // Размещаем блок
+        block.matrix.forEach((row, y) => {
+            row.forEach((cell, x) => {
+                if (cell.value === 1) {
+                    tempBoard[position.y + y][position.x + x] = { value: 1, color: block.color };
+                }
+            });
+        });
+        
+        // Подсчитываем потенциальные линии
+        const linesToClear = this.countLinesToClear(tempBoard);
+        score += linesToClear * 100;
+        
+        // Добавляем бонус за тип блока
+        const blockType = this.getBlockType(block);
+        score *= this.blockTypeWeights[blockType] || 1.0;
+        
+        return score;
+    }
+
+    private canPlaceAllBlocks(board: Matrix, blocks: Block[]): boolean {
+        // Проверяем все возможные перестановки блоков
+        const permutations = this.getPermutations(blocks);
+        
+        for (const permutation of permutations) {
+            let tempBoard = board.map(row => [...row]);
+            let canPlaceAll = true;
+            
+            for (const block of permutation) {
+                const { position } = this.findBestBlockPlacement(tempBoard, block);
+                if (!position) {
+                    canPlaceAll = false;
+                    break;
+                }
+                
+                // Размещаем блок на временной доске
+                block.matrix.forEach((row, y) => {
+                    row.forEach((cell, x) => {
+                        if (cell.value === 1) {
+                            tempBoard[position.y + y][position.x + x] = { value: 1, color: block.color };
+                        }
+                    });
+                });
+            }
+            
+            if (canPlaceAll) return true;
+        }
+        
+        return false;
+    }
+
+    private getPermutations<T>(arr: T[]): T[][] {
+        if (arr.length <= 1) return [arr];
+        
+        const result: T[][] = [];
+        for (let i = 0; i < arr.length; i++) {
+            const current = arr[i];
+            const remaining = [...arr.slice(0, i), ...arr.slice(i + 1)];
+            const remainingPerms = this.getPermutations(remaining);
+            
+            for (const perm of remainingPerms) {
+                result.push([current, ...perm]);
+            }
+        }
+        
+        return result;
     }
 
     getPreviewBlock(): Block | null {

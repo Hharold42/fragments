@@ -235,21 +235,23 @@ export const GameBoard: React.FC<GameBoardProps> = ({
     boolean[][]
   >([]);
   const [placedPiecesCount, setPlacedPiecesCount] = useState(0);
-  const [lastHighlightedPosition, setLastHighlightedPosition] =
-    useState<Position | null>(null);
+  const [isGeneratingNewSet, setIsGeneratingNewSet] = useState(false);
+  const [currentSetNumber, setCurrentSetNumber] = useState(1);
 
-  // Добавим новые состояния для хранения линий
-  const [clearingHorizontalLines, setClearingHorizontalLines] = useState<
-    number[]
-  >([]);
-  const [clearingVerticalLines, setClearingVerticalLines] = useState<number[]>(
-    []
-  );
+  const [lastHighlightedPosition, setLastHighlightedPosition] =
+  useState<Position | null>(null);
+
+// Добавим новые состояния для хранения линий
+const [clearingHorizontalLines, setClearingHorizontalLines] = useState<
+  number[]
+>([]);
+const [clearingVerticalLines, setClearingVerticalLines] = useState<number[]>(
+  []
+);
 
   const blockGenerator = new BlockGenerator();
   const scoreCalculator = new ScoreCalculator();
   const difficultyEvaluator = new DifficultyEvaluator();
-  useEffect(() => {});
 
   useEffect(() => {
     if (isAnimating) {
@@ -278,11 +280,15 @@ export const GameBoard: React.FC<GameBoardProps> = ({
   }, [currentPieces, board]);
 
   const generateNewBlocks = useCallback(() => {
-    const newBlocks = blockGenerator.generateNextBlocks(board);
-    setCurrentPieces(newBlocks);
-    setPreviewBlock(blockGenerator.getPreviewBlock());
-    setPlacedPiecesCount(0); // Reset placed pieces count when generating new blocks
-  }, [board, blockGenerator, setCurrentPieces, setPreviewBlock]);
+    if (!isGeneratingNewSet) {
+      setIsGeneratingNewSet(true);
+      const newBlocks = blockGenerator.generateNextBlocks(board);
+      setCurrentPieces(newBlocks);
+      setPreviewBlock(blockGenerator.getPreviewBlock());
+      setPlacedPiecesCount(0);
+      setIsGeneratingNewSet(false);
+    }
+  }, [board, blockGenerator, setCurrentPieces, setPreviewBlock, isGeneratingNewSet]);
 
   const handlePieceStart = useCallback(
     (piece: Block, x: number, y: number) => {
