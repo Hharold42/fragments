@@ -66,6 +66,7 @@ export const ComboVisualizer: React.FC<ComboVisualizerProps> = ({
   useEffect(() => {
     if (lastScore?.comboLevel) {
       setIsExploding(true);
+      vibrate()
       const timer = setTimeout(() => setIsExploding(false), 400);
       return () => clearTimeout(timer);
     }
@@ -78,6 +79,12 @@ export const ComboVisualizer: React.FC<ComboVisualizerProps> = ({
       return () => clearTimeout(timer);
     }
   }, [lastScore?.comboLevel]);
+
+  const vibrate = () => {
+    if (navigator !== undefined && 'vibrate' in navigator) {
+      navigator.vibrate([20])
+    }
+  }
 
   useEffect(() => {
     const t = debugMode ? currentTheme : theme;

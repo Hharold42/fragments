@@ -12,6 +12,7 @@ import {
   clearLines,
   isGameOver,
   getCellsToClear,
+  checkGameOver,
 } from "../core/engine";
 import { calculateValidPositions } from "../core/positions";
 import { ScoreCalculator } from "../core/score";
@@ -197,11 +198,22 @@ export const useGameStore = create<
     // If there are lines to clear, update the board after animation
     if (hasCellsToClear) {
       setTimeout(() => {
+        const updatedBoard = boardAfterClearing;
         set({
-          board: boardAfterClearing,
+          board: updatedBoard,
           isAnimating: false,
         });
+        
+        // Проверяем возможность размещения оставшихся фигур
+        if (checkGameOver(updatedBoard, newCurrentPieces)) {
+          set({ gameOver: true });
+        }
       }, 300); // Match the animation duration from CSS
+    } else {
+      // Проверяем возможность размещения оставшихся фигур
+      if (checkGameOver(newBoard, newCurrentPieces)) {
+        set({ gameOver: true });
+      }
     }
 
     // Handle new blocks if needed

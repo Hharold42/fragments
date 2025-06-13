@@ -15,6 +15,8 @@ import { ScoreCalculator } from "../lib/core/scoreCalculator";
 import { Piece } from "./pieces/Piece";
 import { ComboVisualizer } from "./board/ComboVisualizer";
 import { SVGPreloader } from "@/utils/SVGPreloader";
+import { useTelegramUser } from '../hooks/useTelegramUser';
+import { showGameOverPopup, initTelegramWebApp } from '../utils/telegram';
 
 const DEFAULT_CELL_SIZE = 43.75;
 
@@ -197,7 +199,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
     initializeGame,
     score,
     lastScoreResult,
-
+    gameOver,
     setCurrentPieces,
     previewBlock,
     setPreviewBlock,
@@ -252,6 +254,8 @@ const [clearingVerticalLines, setClearingVerticalLines] = useState<number[]>(
   const blockGenerator = new BlockGenerator();
   const scoreCalculator = new ScoreCalculator();
   const difficultyEvaluator = new DifficultyEvaluator();
+
+  const { isWebApp } = useTelegramUser();
 
   useEffect(() => {
     if (isAnimating) {
@@ -485,6 +489,22 @@ const [clearingVerticalLines, setClearingVerticalLines] = useState<number[]>(
     "purple",
     "orange",
   ]; // добавьте все ваши цвета
+
+  useEffect(() => {
+    if (isWebApp) {
+      initTelegramWebApp();
+    }
+  }, [isWebApp]);
+
+  useEffect(() => {
+    if (gameOver) {
+      onGameOver();
+      if (isWebApp) {
+        showGameOverPopup(score);
+      }
+    }
+  }, [gameOver, onGameOver, score, isWebApp]);
+
   return (
     <div className="flex flex-col items-center gap-8 min-h-screen bg-[var(--game-background)] p-4 no-select">
       <SVGPreloader colors={allColors} />
@@ -618,7 +638,7 @@ const [clearingVerticalLines, setClearingVerticalLines] = useState<number[]>(
           );
         })}
       </div>
-      {isGameOver && <GameOver />}
+      {gameOver && !isWebApp && <GameOver />}
     </div>
   );
 };

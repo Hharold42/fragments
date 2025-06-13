@@ -1,21 +1,20 @@
 import type { Metadata } from "next";
 import { Figtree, Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { TelegramScript } from '../components/TelegramScript';
 
 const geistSans = Geist({
-  variable: "--font-geist-sans",
   subsets: ["latin"],
+  variable: "--font-geist-sans",
 });
 
 const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
   subsets: ["latin"],
+  variable: "--font-geist-mono",
 });
 
 const figtree = Figtree({
   subsets: ["latin"],
-  weight: ["400", "600", "800", "900", "700"],
-  style: ["normal", "italic"],
   variable: "--font-figtree",
 });
 
@@ -35,15 +34,18 @@ export const viewport = {
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
     <html
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} ${figtree.variable} antialiased overflow-y-hidden overflow-x-hidden`}
     >
-      <body>{children}</body>
+      <body>
+        <TelegramScript />
+        {children}
+      </body>
     </html>
   );
 }

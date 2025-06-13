@@ -209,3 +209,14 @@ export function generateGuaranteedBlocks(board: Matrix): Block[] {
     // Возвращаем все три фигуры
     return [firstBlock.block, secondBlock.block, thirdBlock.block];
 }
+
+export function checkGameOver(board: Matrix, pieces: Block[]): boolean {
+  // Проверяем каждую фигуру
+  for (const piece of pieces) {
+    const validPositions = findAllValidPositions(board, piece);
+    if (validPositions.length === 0) {
+      return true; // Игра окончена, если хотя бы одна фигура не может быть размещена
+    }
+  }
+  return false;
+}
