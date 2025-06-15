@@ -18,6 +18,7 @@ import { SVGPreloader } from "@/utils/SVGPreloader";
 import { useTelegramUser } from '../hooks/useTelegramUser';
 import { initTelegramWebApp, closeTelegramWebApp } from '../utils/telegram';
 import { TelegramGameOver } from './TelegramGameOver';
+import { TelegramInfo } from './TelegramInfo';
 
 const DEFAULT_CELL_SIZE = 43.75;
 
@@ -256,7 +257,7 @@ const [clearingVerticalLines, setClearingVerticalLines] = useState<number[]>(
   const scoreCalculator = new ScoreCalculator();
   const difficultyEvaluator = new DifficultyEvaluator();
 
-  const { isWebApp } = useTelegramUser();
+  const { isWebApp, user } = useTelegramUser();
 
   useEffect(() => {
     if (isAnimating) {
@@ -505,6 +506,7 @@ const [clearingVerticalLines, setClearingVerticalLines] = useState<number[]>(
 
   return (
     <div className="flex flex-col items-center gap-8 min-h-screen bg-[var(--game-background)] p-4 no-select">
+      <TelegramInfo />
       <SVGPreloader colors={allColors} />
       {/* Top section: Score and Settings (placeholder) */}
       <div className="flex justify-between w-full items-center">
