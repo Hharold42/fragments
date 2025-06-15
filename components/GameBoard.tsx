@@ -16,7 +16,8 @@ import { Piece } from "./pieces/Piece";
 import { ComboVisualizer } from "./board/ComboVisualizer";
 import { SVGPreloader } from "@/utils/SVGPreloader";
 import { useTelegramUser } from '../hooks/useTelegramUser';
-import { showGameOverPopup, initTelegramWebApp } from '../utils/telegram';
+import { initTelegramWebApp, closeTelegramWebApp } from '../utils/telegram';
+import { TelegramGameOver } from './TelegramGameOver';
 
 const DEFAULT_CELL_SIZE = 43.75;
 
@@ -499,11 +500,8 @@ const [clearingVerticalLines, setClearingVerticalLines] = useState<number[]>(
   useEffect(() => {
     if (gameOver) {
       onGameOver();
-      if (isWebApp) {
-        showGameOverPopup(score);
-      }
     }
-  }, [gameOver, onGameOver, score, isWebApp]);
+  }, [gameOver, onGameOver]);
 
   return (
     <div className="flex flex-col items-center gap-8 min-h-screen bg-[var(--game-background)] p-4 no-select">
@@ -639,6 +637,12 @@ const [clearingVerticalLines, setClearingVerticalLines] = useState<number[]>(
         })}
       </div>
       {gameOver && !isWebApp && <GameOver />}
+      {gameOver && isWebApp && (
+        <TelegramGameOver
+          score={score}
+          onPlayAgain={resetGame}
+        />
+      )}
     </div>
   );
 };

@@ -1,6 +1,9 @@
 import { Block, Matrix, Position, Cell } from "../data/types";
 import { findAllValidPositions } from "./positions";
 import { BLOCKS } from "../data/pieces";
+import { ScoreCalculator } from "./score";
+
+const scoreCalculator = new ScoreCalculator();
 
 export function canPlaceBlock(
   board: Matrix,
@@ -214,9 +217,11 @@ export function checkGameOver(board: Matrix, pieces: Block[]): boolean {
   // Проверяем каждую фигуру
   for (const piece of pieces) {
     const validPositions = findAllValidPositions(board, piece);
-    if (validPositions.length === 0) {
-      return true; // Игра окончена, если хотя бы одна фигура не может быть размещена
+    // Если хотя бы одна фигура может быть размещена, игра не окончена
+    if (validPositions.length > 0) {
+      return false;
     }
   }
-  return false;
+  // Если ни одна фигура не может быть размещена, игра окончена
+  return true;
 }

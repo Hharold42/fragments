@@ -14,10 +14,12 @@ import {
   getCellsToClear,
   checkGameOver,
 } from "../core/engine";
+import { calculateScore } from "../core/score";
 import { calculateValidPositions } from "../core/positions";
 import { ScoreCalculator } from "../core/score";
 import { BlockGenerator } from "../core/blockGenerator";
 import { DifficultyEvaluator } from "../core/difficulty";
+import { storageService } from '../services/storage';
 
 interface ExtendedGameState extends GameState {
   round: number;
@@ -41,60 +43,21 @@ const placePieceOnBoard = (
   position: Position
 ): Matrix => {
   const newBoard = board.map((row) => [...row]);
-  piece.matrix.forEach((row, dy) => {
-    row.forEach((cell, dx) => {
+  piece.matrix.forEach((row, y) => {
+    row.forEach((cell, x) => {
       if (cell.value === 1) {
-        newBoard[position.y + dy][position.x + dx] = {
-          value: 1,
-          color: piece.color,
-        };
+        const boardY = y + position.y;
+        const boardX = x + position.x;
+        if (boardY >= 0 && boardY < board.length && boardX >= 0 && boardX < board[0].length) {
+          newBoard[boardY][boardX] = { 
+            value: 1,
+            color: piece.color
+          };
+        }
       }
     });
   });
   return newBoard;
-};
-
-const calculateScore = (
-  newBoard: Matrix,
-  oldBoard: Matrix,
-  piece: Block,
-  cellsToClear: boolean[][],
-  position: Position
-): ScoreResult => {
-  const { newBoard: clearedBoard, clearedLines } = clearLines(newBoard);
-  const cellsPlaced = piece.matrix.reduce(
-    (sum, row) => sum + row.reduce((rowSum, cell) => rowSum + cell.value, 0),
-    0
-  );
-  const cellsInLines = cellsToClear.reduce((sum, row, y) => {
-    return (
-      sum +
-      row.reduce((rowSum, cell, x) => {
-        if (cell) {
-          const relX = x - position.x;
-          const relY = y - position.y;
-          if (
-            relY >= 0 &&
-            relY < piece.matrix.length &&
-            relX >= 0 &&
-            relX < piece.matrix[0].length &&
-            piece.matrix[relY][relX].value === 1
-          ) {
-            return rowSum + 1;
-          }
-        }
-        return rowSum;
-      }, 0)
-    );
-  }, 0);
-
-  return scoreCalculator.calculateScore(
-    clearedBoard,
-    clearedLines,
-    cellsPlaced,
-    cellsInLines,
-    piece
-  );
 };
 
 export const useGameStore = create<
@@ -109,6 +72,8 @@ export const useGameStore = create<
     hoverCell: { x: number; y: number } | null;
     setHoverCell: (cell: { x: number; y: number } | null) => void;
     initializeGame: () => void;
+    saveGameState: () => void;
+    loadGameState: () => Promise<void>;
   }
 >((set, get) => ({
   draggedPiece: null,
@@ -181,39 +146,39 @@ export const useGameStore = create<
       (p) => p.uniqueId !== draggedPiece.uniqueId
     );
 
-    // First update with the piece placed but not cleared
+    // Если все фигуры размещены, выдаем новый набор и не проверяем game over
+    if (newPiecesPlaced === 0) {
+      const newBlocks = blockGenerator.generateNextBlocks(boardAfterClearing);
+      set({
+        board: boardAfterClearing,
+        currentPieces: newBlocks,
+        previewBlock: blockGenerator.getPreviewBlock(),
+        round: newRound,
+        piecesPlaced: newPiecesPlaced,
+        score: get().score + scoreResult.totalPoints,
+        lastScoreResult: scoreResult,
+        isAnimating: hasCellsToClear,
+      });
+      get().saveGameState();
+      return;
+    }
+
+    // Обновляем состояние доски и очищаем линии
     set({
-      board: newBoard, // Use newBoard instead of boardAfterClearing
+      board: boardAfterClearing,
       currentPieces: newCurrentPieces,
-      draggedPiece: null,
-      dragPosition: null,
-      hoverCell: null,
+      previewBlock: blockGenerator.getPreviewBlock(),
       round: newRound,
       piecesPlaced: newPiecesPlaced,
       score: get().score + scoreResult.totalPoints,
       lastScoreResult: scoreResult,
-      isAnimating: hasCellsToClear, // Set animation state if there are lines to clear
+      isAnimating: hasCellsToClear,
     });
+    get().saveGameState();
 
-    // If there are lines to clear, update the board after animation
-    if (hasCellsToClear) {
-      setTimeout(() => {
-        const updatedBoard = boardAfterClearing;
-        set({
-          board: updatedBoard,
-          isAnimating: false,
-        });
-        
-        // Проверяем возможность размещения оставшихся фигур
-        if (checkGameOver(updatedBoard, newCurrentPieces)) {
-          set({ gameOver: true });
-        }
-      }, 300); // Match the animation duration from CSS
-    } else {
-      // Проверяем возможность размещения оставшихся фигур
-      if (checkGameOver(newBoard, newCurrentPieces)) {
-        set({ gameOver: true });
-      }
+    // Проверяем возможность размещения оставшихся фигур
+    if (checkGameOver(boardAfterClearing, newCurrentPieces)) {
+      set({ gameOver: true });
     }
 
     // Handle new blocks if needed
@@ -226,7 +191,30 @@ export const useGameStore = create<
     }
   },
 
+  saveGameState: () => {
+    const { board, currentPieces, score } = get();
+    storageService.saveCurrentGame({
+      board,
+      currentPieces,
+      score
+    });
+    storageService.updateHighScore(score);
+  },
+
+  loadGameState: async () => {
+    const savedState = await storageService.getCurrentGame();
+    if (savedState) {
+      set({
+        board: savedState.board,
+        currentPieces: savedState.currentPieces,
+        score: savedState.score,
+        gameOver: false
+      });
+    }
+  },
+
   resetGame: () => {
+    storageService.clearSavedGame();
     set({
       board: Array(8)
         .fill(0)
@@ -236,14 +224,12 @@ export const useGameStore = create<
       gameOver: false,
       round: 1,
       piecesPlaced: 0,
-      validPositions: [],
       draggedPiece: null,
       dragPosition: null,
+      hoverCell: null,
       lastScoreResult: null,
-      previewBlock: null,
-      blockEvaluations: [],
+      isAnimating: false,
     });
-    scoreCalculator.resetCombo();
   },
 
   hoverCell: null,
