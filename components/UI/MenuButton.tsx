@@ -40,6 +40,7 @@ const MenuButton: FC<MenuButtonProps> = ({
               className="w-auto max-h-[100%] object-contain"
               width={0}
               height={0}
+              priority={true}
             />
           </span>
         )}
@@ -62,6 +63,7 @@ const MenuButton: FC<MenuButtonProps> = ({
               className={` w-auto h-full object-contain max-h-[6vh]`}
               width={0}
               height={0}
+              priority={true}
             />
           </span>
         )}

@@ -10,3 +10,7 @@ export function createArray(start: number, stop: number, step: number) {
   }
   return result;
 }
+
+export function normalizeNum(value: number, min: number, max: number) {
+  return (value - min) / (max - min);
+}

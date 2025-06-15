@@ -5,16 +5,24 @@ import { useGameStore } from "../lib/state/store";
 import { getCellsToClear } from "@/lib/core/engine";
 import { findNearestValidPosition } from "../lib/core/positions";
 import { DraggablePiece } from "./DraggablePiece";
-import { Block, Matrix, Position } from "../lib/data/types";
+import { Block, BlockColor, Matrix, Position } from "../lib/data/types";
 import { getEventCoordinates } from "@/utils/events";
-import { ScoreDisplay } from "./ScoreDisplay";
+import { ScoreDisplay } from "./board/ScoreDisplay";
 import { BlockGenerator } from "../lib/core/blockGenerator";
 import { DifficultyEvaluator } from "../lib/core/difficulty";
 import { GameOver } from "./GameOver";
 import { ScoreCalculator } from "../lib/core/scoreCalculator";
 import { Piece } from "./pieces/Piece";
+import { ComboVisualizer } from "./board/ComboVisualizer";
+import { SVGPreloader } from "@/utils/SVGPreloader";
+import { useTelegramUser } from '../hooks/useTelegramUser';
+import { initTelegramWebApp, closeTelegramWebApp } from '../utils/telegram';
+import { TelegramGameOver } from './TelegramGameOver';
 
 const DEFAULT_CELL_SIZE = 43.75;
+
+// Добавьте константу для размера зазора в пикселях
+const GAP_SIZE_PX = 2; // Исходя из gap-0.5 в TailwindCSS (0.125rem * 16px)
 
 interface GameBoardProps {
   width?: number;
@@ -87,7 +95,7 @@ const useGridPosition = () => {
       const referenceCenter = referenceWidth / 2;
       const minOffsetY = 1.5;
       const maxOffsetY = 3.5;
-      const maxOffsetX = 2.0;
+      const maxOffsetX = 2;
 
       const normalizedCursorY = Math.max(
         0,
@@ -106,7 +114,11 @@ const useGridPosition = () => {
   );
 
   const calculateGridPosition = useCallback(
-    (e: MouseEvent | TouchEvent, currentDragPosition: Position | null) => {
+    (
+      e: MouseEvent | TouchEvent,
+      currentDragPosition: Position | null,
+      lastHighlightedPosition: Position | null
+    ) => {
       const rect = boardRect;
 
       if (!rect || !currentDragPosition) {
@@ -139,10 +151,19 @@ const useGridPosition = () => {
       const relativeX = clientX - rect.left;
       const relativeY = clientY - rect.top;
 
-      const baseX = Math.floor((relativeX - offsetX) / dynamicCellSize);
-      const baseY = Math.floor((relativeY - offsetY) / dynamicCellSize);
+      // Здесь мы учитываем gap при вычислении индекса клетки
+      const pitch = dynamicCellSize + GAP_SIZE_PX;
 
-      return findNearestValidPosition(validPositions, { x: baseX, y: baseY });
+      const baseX = Math.round((relativeX - offsetX) / pitch);
+      const baseY = Math.round((relativeY - offsetY) / pitch);
+
+      const nearestPosition = findNearestValidPosition(
+        validPositions,
+        { x: baseX, y: baseY },
+        lastHighlightedPosition
+      );
+
+      return nearestPosition;
     },
     [validPositions, boardRect, dynamicCellSize, calculateDynamicOffset]
   );
@@ -179,6 +200,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
     initializeGame,
     score,
     lastScoreResult,
+    gameOver,
     setCurrentPieces,
     previewBlock,
     setPreviewBlock,
@@ -219,9 +241,22 @@ export const GameBoard: React.FC<GameBoardProps> = ({
   const [isGeneratingNewSet, setIsGeneratingNewSet] = useState(false);
   const [currentSetNumber, setCurrentSetNumber] = useState(1);
 
+  const [lastHighlightedPosition, setLastHighlightedPosition] =
+  useState<Position | null>(null);
+
+// Добавим новые состояния для хранения линий
+const [clearingHorizontalLines, setClearingHorizontalLines] = useState<
+  number[]
+>([]);
+const [clearingVerticalLines, setClearingVerticalLines] = useState<number[]>(
+  []
+);
+
   const blockGenerator = new BlockGenerator();
   const scoreCalculator = new ScoreCalculator();
   const difficultyEvaluator = new DifficultyEvaluator();
+
+  const { isWebApp } = useTelegramUser();
 
   useEffect(() => {
     if (isAnimating) {
@@ -278,13 +313,36 @@ export const GameBoard: React.FC<GameBoardProps> = ({
       );
 
       if (hasCellsToClear) {
-        setClearingCells(cellsToClear);
-        setIsAnimating(true);
+        // Находим горизонтальные линии
+        const horizontalLines = cellsToClear
+          .map((row, index) => (row.every((cell) => cell) ? index : -1))
+          .filter((index) => index !== -1);
+
+        // Находим вертикальные линии
+        const verticalLines = Array(width)
+          .fill(0)
+          .map((_, colIndex) => {
+            const isFullLine = cellsToClear.every((row) => row[colIndex]);
+            return isFullLine ? colIndex : -1;
+          })
+          .filter((index) => index !== -1);
+
+        // Сначала размещаем фигуру
         placePiece(x, y);
-        setTimeout(() => {
-          setClearingCells([]);
-          setIsAnimating(false);
-        }, 500);
+
+        // Затем запускаем анимацию
+        requestAnimationFrame(() => {
+          setClearingHorizontalLines(horizontalLines);
+          setClearingVerticalLines(verticalLines);
+          setIsAnimating(true);
+
+          // Очищаем состояния анимации через некоторое время
+          setTimeout(() => {
+            setClearingHorizontalLines([]);
+            setClearingVerticalLines([]);
+            setIsAnimating(false);
+          }, 300);
+        });
       } else {
         placePiece(x, y);
       }
@@ -303,7 +361,20 @@ export const GameBoard: React.FC<GameBoardProps> = ({
       const currentDragPosition = { x: clientX, y: clientY };
       updateDrag(currentDragPosition);
 
-      const nearestPosition = calculateGridPosition(e, currentDragPosition);
+      const nearestPosition = calculateGridPosition(
+        e,
+        currentDragPosition,
+        lastHighlightedPosition
+      );
+
+      // Обновляем последнюю подсвеченную позицию только если есть новая позиция
+      if (nearestPosition) {
+        setLastHighlightedPosition(nearestPosition);
+      } else {
+        // Сбрасываем lastHighlightedPosition когда хайлайт исчезает
+        setLastHighlightedPosition(null);
+      }
+
       setHoverCell(nearestPosition);
     };
 
@@ -314,15 +385,13 @@ export const GameBoard: React.FC<GameBoardProps> = ({
     const handleEnd = (e: MouseEvent | TouchEvent) => {
       if (draggedPiece) {
         if (hoverCell) {
-          // Фигура отпущена над допустимой позицией, размещаем ее
           handlePiecePlacement(hoverCell.x, hoverCell.y);
         } else {
-          // Фигура отпущена вне допустимой позиции, отменяем перетаскивание
           endDrag();
         }
       }
-      // Сбрасываем hoverCell в любом случае после завершения перетаскивания
       setHoverCell(null);
+      setLastHighlightedPosition(null); // Сбрасываем при окончании перетаскивания
     };
 
     window.addEventListener("touchstart", handleStart, { passive: false });
@@ -348,6 +417,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
     board,
     calculateGridPosition,
     hoverCell,
+    lastHighlightedPosition,
   ]);
 
   const calculatePotentialClearLines = useCallback(
@@ -411,19 +481,45 @@ export const GameBoard: React.FC<GameBoardProps> = ({
     }
   }, [draggedPiece, hoverCell, calculatePotentialClearLines]);
 
+  // const [ScoreResult, lastScoreResult] = useGameStore()
+  const allColors: BlockColor[] = [
+    "red",
+    "blue",
+    "green",
+    "yellow",
+    "purple",
+    "orange",
+  ]; // добавьте все ваши цвета
+
+  useEffect(() => {
+    if (isWebApp) {
+      initTelegramWebApp();
+    }
+  }, [isWebApp]);
+
+  useEffect(() => {
+    if (gameOver) {
+      onGameOver();
+    }
+  }, [gameOver, onGameOver]);
+
   return (
-    <div className="flex flex-col items-center gap-8 min-h-screen  bg-blue-900 p-4 no-select">
+    <div className="flex flex-col items-center gap-8 min-h-screen bg-[var(--game-background)] p-4 no-select">
+      <SVGPreloader colors={allColors} />
       {/* Top section: Score and Settings (placeholder) */}
       <div className="flex justify-between w-full items-center">
-        <div className="text-2xl font-bold text-white">
+        <div className="text-2xl font-figtree font-bold text-white">
           500 {/* Placeholder for trophy */}
         </div>
-        <div className="text-4xl font-bold text-white">{score}</div>
+        <ScoreDisplay newScore={score} moveScore={lastScoreResult} />
+
         <div className="text-2xl font-bold text-white" onClick={onExitGame}>
           ⚙️ {/* Placeholder for settings icon */}
         </div>
       </div>
-
+      {/* <div className="w-1/2 break-all h-[3vh]">
+        Debug: {JSON.stringify(lastScoreResult)}
+      </div> */}
       {/* Middle section: Power-ups (placeholder) */}
       {/* <div className="flex justify-around w-full my-4">
         <div className="w-12 h-12 bg-gray-700 rounded-full flex items-center justify-center text-white">⚡</div>
@@ -431,72 +527,77 @@ export const GameBoard: React.FC<GameBoardProps> = ({
         <div className="w-12 h-12 bg-gray-700 rounded-full flex items-center justify-center text-white">💥</div>
         <div className="w-12 h-12 bg-gray-700 rounded-full flex items-center justify-center text-white">🔄</div>
       </div> */}
-
       {/* Game Board Container - takes full width and maintains aspect ratio */}
+
       <div className="w-full aspect-square flex justify-center items-center p-4 md:max-w-xs md:max-h-xs">
-        <div
-          ref={boardRef}
-          className="grid grid-cols-8 grid-rows-8 gap-0.5 w-full h-full bg-gray-800 p-1 rounded-lg relative"
-        >
-          {board.map((row, y) => (
-            <React.Fragment key={y}>
-              {row.map((cell, x) => {
-                const isFirst = y === 0 && x === 0;
-                let highlight = false;
-                let willBeCleared = false;
-                let isClearing = false;
-                let isPotentiallyCleared = false;
+        <div className="relative w-full h-full">
+          <ComboVisualizer speed={4} lastScore={lastScoreResult} />
 
-                if (draggedPiece && hoverCell) {
-                  const pieceMatrix = draggedPiece.matrix;
-                  const pieceX = x - hoverCell.x;
-                  const pieceY = y - hoverCell.y;
+          <div
+            ref={boardRef}
+            className="relative z-10 grid grid-cols-8 grid-rows-8 gap-0.5 w-full h-full bg-gray-800 p-1 rounded-lg"
+          >
+            {board.map((row, y) => (
+              <React.Fragment key={y}>
+                {row.map((cell, x) => {
+                  const isFirst = y === 0 && x === 0;
+                  let highlight = false;
+                  let isInClearingLine = false;
+                  let isPotentiallyCleared = false;
 
-                  if (
-                    pieceY >= 0 &&
-                    pieceY < pieceMatrix.length &&
-                    pieceX >= 0 &&
-                    pieceX < pieceMatrix[0].length
-                  ) {
-                    highlight = pieceMatrix[pieceY][pieceX].value === 1;
+                  if (draggedPiece && hoverCell) {
+                    const pieceMatrix = draggedPiece.matrix;
+                    const pieceX = x - hoverCell.x;
+                    const pieceY = y - hoverCell.y;
+
+                    if (
+                      pieceY >= 0 &&
+                      pieceY < pieceMatrix.length &&
+                      pieceX >= 0 &&
+                      pieceX < pieceMatrix[0].length
+                    ) {
+                      highlight = pieceMatrix[pieceY][pieceX].value === 1;
+                    }
                   }
-                }
 
-                if (clearingCells[y]?.[x]) {
-                  willBeCleared = true;
-                  isClearing = isAnimating;
-                }
+                  // Check if this cell is marked for potential clearing on hover
+                  if (potentialClearHighlight[y]?.[x]) {
+                    isPotentiallyCleared = true;
+                  }
+                  // Проверяем, находится ли ячейка в очищаемой линии
+                  isInClearingLine =
+                    clearingHorizontalLines.includes(y) ||
+                    clearingVerticalLines.includes(x);
 
-                // Check if this cell is marked for potential clearing on hover
-                if (potentialClearHighlight[y]?.[x]) {
-                  isPotentiallyCleared = true;
-                }
-
-                return (
-                  <div
-                    key={x}
-                    ref={isFirst ? cellRef : null}
-                    className={`rounded-[3px] ${
-                      cell.value ? "bg-gray-700" : "bg-gray-900"
-                    } ${highlight ? "ring-2 ring-blue-500" : ""} ${
-                      willBeCleared ? "clearing-highlight" : ""
-                    } ${isClearing ? "shaking" : ""} ${
-                      isPotentiallyCleared ? "potential-clear-highlight" : ""
-                    }`}
-                  >
-                    {cell.value === 1 && cell.color && (
-                      <Piece color={cell.color} size="100%" />
-                    )}
-                  </div>
-                );
-              })}
-            </React.Fragment>
-          ))}
+                  return (
+                    <div
+                      key={x}
+                      ref={isFirst ? cellRef : null}
+                      className={`rounded-[3px] ${
+                        cell.value ? "bg-gray-700" : "bg-gray-900"
+                      } ${highlight ? "ring-2 ring-blue-500" : ""} ${
+                        isInClearingLine ? "clearing-line-horizontal" : ""
+                      } ${isInClearingLine ? "clearing-line-vertical" : ""} ${
+                        isPotentiallyCleared ? "potential-clear-highlight" : ""
+                      }`}
+                    >
+                      {cell.value === 1 && cell.color && (
+                        <Piece
+                          color={cell.color}
+                          size="100%"
+                          isClearing={isInClearingLine}
+                        />
+                      )}
+                    </div>
+                  );
+                })}
+              </React.Fragment>
+            ))}
+          </div>
         </div>
       </div>
-
       {/* Draggable Pieces */}
-      <div className="flex justify-center gap-4 mt-4 relative">
+      <div className="flex justify-center gap-4 mt-4 relative ">
         {currentPieces.map((piece) => {
           const isBeingDragged = draggedPiece?.uniqueId === piece.uniqueId;
 
@@ -530,13 +631,18 @@ export const GameBoard: React.FC<GameBoardProps> = ({
               style={itemStyle}
               isGhost={isBeingDragged}
               ghostSize={dynamicCellSize}
-              originalSize={dynamicCellSize * 0.8}
+              originalSize={dynamicCellSize * 0.6}
             />
           );
         })}
       </div>
-
-      {isGameOver && <GameOver />}
+      {gameOver && !isWebApp && <GameOver />}
+      {gameOver && isWebApp && (
+        <TelegramGameOver
+          score={score}
+          onPlayAgain={resetGame}
+        />
+      )}
     </div>
   );
 };

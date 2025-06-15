@@ -1,4 +1,5 @@
-import { Block, Matrix } from "../data/types";
+import { Block, Matrix, Position } from "../data/types";
+import { clearLines } from "./engine";
 
 // Таблица базовых очков за количество очищенных линий
 const LINE_CLEAR_POINTS: { [key: number]: number } = {
@@ -19,6 +20,7 @@ interface ScoreResult {
   comboLevel: number;
   comboBonus: number;
   isBoardCleared: boolean;
+  movesSinceLastSuccess: number;
 }
 
 export class ScoreCalculator {
@@ -91,7 +93,6 @@ export class ScoreCalculator {
   }
 
   calculateScore(
-
     board: Matrix,
     clearedLines: number,
     cellsPlaced: number,
@@ -124,6 +125,8 @@ export class ScoreCalculator {
       clearedBlocksPoints + 
       boardClearBonus;
 
+    const movesSinceLastSuccess = this.moveCounter - this.lastSuccessfulMove;
+
     return {
       totalPoints,
       clearedLines,
@@ -133,7 +136,52 @@ export class ScoreCalculator {
       clearedBlocksPoints,
       comboLevel: this.comboCounter,
       comboBonus,
-      isBoardCleared
+      isBoardCleared,
+      movesSinceLastSuccess
     };
   }
-} 
+}
+
+export const calculateScore = (
+  newBoard: Matrix,
+  oldBoard: Matrix,
+  piece: Block,
+  cellsToClear: boolean[][],
+  position: Position
+) => {
+  const { newBoard: clearedBoard, clearedLines } = clearLines(newBoard);
+  const cellsPlaced = piece.matrix.reduce(
+    (sum, row) => sum + row.reduce((rowSum, cell) => rowSum + cell.value, 0),
+    0
+  );
+  const cellsInLines = cellsToClear.reduce((sum, row, y) => {
+    return (
+      sum +
+      row.reduce((rowSum, cell, x) => {
+        if (cell) {
+          const relX = x - position.x;
+          const relY = y - position.y;
+          if (
+            relY >= 0 &&
+            relY < piece.matrix.length &&
+            relX >= 0 &&
+            relX < piece.matrix[0].length &&
+            piece.matrix[relY][relX].value === 1
+          ) {
+            return rowSum + 1;
+          }
+        }
+        return rowSum;
+      }, 0)
+    );
+  }, 0);
+
+  const calculator = new ScoreCalculator();
+  return calculator.calculateScore(
+    clearedBoard,
+    clearedLines,
+    cellsPlaced,
+    cellsInLines,
+    piece
+  );
+}; 
