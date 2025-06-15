@@ -18,6 +18,8 @@
 /out/
 /fragments_old/
 /fragments_old
+gamelogst.txt
+
 
 # production
 /build
